@@ -57,11 +57,13 @@ Requires Node 20.19+ (Vite 8).
 
 ## Deployment
 
-The site is published at [imageinplace.com](https://imageinplace.com). `npm run build` produces a fully static `dist/` folder that any static host can serve:
+The site is published at [imageinplace.com](https://imageinplace.com) on the shared `static-sites` Nginx service of the gallego.top server, behind Traefik. Publishing follows the hub runbook `D:\gallego.top\runbooks\static-site-content.md`:
 
-- `dist/_headers` carries the security headers (CSP with `frame-ancestors`, HSTS, `nosniff`, Referrer-Policy, Permissions-Policy) and long-lived caching for hashed assets. Netlify and Cloudflare Pages apply it automatically; on other hosts, configure the same headers from `vite.config.js`.
-- `dist/CNAME` sets the custom domain for GitHub Pages; other hosts ignore it.
-- `robots.txt`, `sitemap.xml`, the web manifest, icons and the social preview image live in `public/`.
+1. `npm run check` (lint, unit tests, production build).
+2. Copy `dist/` into `static-sites/sites/imageinplace.com/` in the management workspace.
+3. Run `D:\gallego.top\scripts\publish_static_site.ps1 -Domain imageinplace.com` for a new domain, or the content synchronization workflow for updates.
+
+Security response headers (CSP with `frame-ancestors`, HSTS, `nosniff`, Referrer-Policy, Permissions-Policy) come from the `imageinplace-security` Traefik middleware; the CSP `<meta>` tag injected at build time keeps the same policy for any other host.
 
 ## Privacy
 
