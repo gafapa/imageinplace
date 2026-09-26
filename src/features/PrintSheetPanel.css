@@ -1,0 +1,13 @@
+.print-sheet-panel { min-height: 100%; }
+.print-sheet-panel .batch-heading { display: flex; justify-content: space-between; align-items: flex-start; }
+.print-preview { display: grid; place-items: center; margin: 12px 0; padding: 10px; background: #edf0f2; border-radius: 10px; }
+.print-page { position: relative; width: 150px; height: 212px; background: white; box-shadow: 0 2px 8px #17202a2b; }
+.print-page.landscape { width: 212px; height: 150px; }
+.print-page > strong { position: absolute; z-index: 1; height: 10px; font-size: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.print-thumb { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; overflow: hidden; border: 1px solid #e0e4e6; }
+.print-thumb img { width: 100%; height: calc(100% - 12px); object-fit: contain; }
+.print-thumb small { display: block; width: 100%; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; font-size: 5px; line-height: 12px; }
+.print-pagination { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 16px; font-size: 11px; }
+.print-number-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.print-number-grid .text-field { margin-bottom: 14px; }
+.print-check { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; font-size: 12px; }

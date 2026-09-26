@@ -1,0 +1,15 @@
+.compression-panel { min-height: 100%; }
+.compression-panel .batch-heading { display: flex; justify-content: space-between; align-items: flex-start; }
+.compression-panel .panel-kicker { display: inline-flex; align-items: center; gap: 6px; }
+.compression-check { display: flex; gap: 9px; align-items: center; margin: 0 0 18px; font-size: 12px; }
+.compression-check input { accent-color: #2563eb; }
+.compression-selection { margin: 4px 0 20px; color: var(--muted, #68736f); font-size: 11px; }
+.compression-report { margin-top: 20px; border-top: 1px solid var(--line, #dfe3e1); }
+.compression-report h3 { margin: 16px 0 8px; font-size: 13px; }
+.compression-result { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line, #dfe3e1); font-size: 11px; }
+.compression-result strong, .compression-result small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compression-result strong { max-width: 180px; }
+.compression-result small { margin-top: 3px; color: var(--muted, #68736f); }
+.compression-ok, .compression-fail { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; font-size: 10px; font-weight: 700; }
+.compression-ok { color: #23734f; }
+.compression-fail { color: #963c30; }

@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-13T17:05:52.311Z",
+  "title": "Design System: Image in Place",
+  "extensions": {
+    "colorMeta": {
+      "document-red": { "role": "primary", "displayName": "Document Red", "canonical": "#dc2635", "tonalRamp": ["oklch(15% 0.18 25)", "oklch(27% 0.18 25)", "oklch(39% 0.18 25)", "oklch(52% 0.18 25)", "oklch(65% 0.18 25)", "oklch(77% 0.18 25)", "oklch(88% 0.18 25)", "oklch(95% 0.18 25)"] },
+      "document-red-deep": { "role": "primary", "displayName": "Deep Document Red", "canonical": "#bd1726", "tonalRamp": ["oklch(15% 0.17 25)", "oklch(27% 0.17 25)", "oklch(39% 0.17 25)", "oklch(52% 0.17 25)", "oklch(65% 0.17 25)", "oklch(77% 0.17 25)", "oklch(88% 0.17 25)", "oklch(95% 0.17 25)"] },
+      "selection-blue": { "role": "secondary", "displayName": "Selection Blue", "canonical": "#2563eb", "tonalRamp": ["oklch(15% 0.18 260)", "oklch(27% 0.18 260)", "oklch(39% 0.18 260)", "oklch(52% 0.18 260)", "oklch(65% 0.18 260)", "oklch(77% 0.18 260)", "oklch(88% 0.18 260)", "oklch(95% 0.18 260)"] },
+      "selection-blue-deep": { "role": "secondary", "displayName": "Deep Selection Blue", "canonical": "#1d4ed8", "tonalRamp": ["oklch(15% 0.17 260)", "oklch(27% 0.17 260)", "oklch(39% 0.17 260)", "oklch(52% 0.17 260)", "oklch(65% 0.17 260)", "oklch(77% 0.17 260)", "oklch(88% 0.17 260)", "oklch(95% 0.17 260)"] },
+      "selection-blue-soft": { "role": "secondary", "displayName": "Soft Selection Blue", "canonical": "#eff6ff", "tonalRamp": ["oklch(15% 0.03 255)", "oklch(27% 0.03 255)", "oklch(39% 0.03 255)", "oklch(52% 0.03 255)", "oklch(65% 0.03 255)", "oklch(77% 0.03 255)", "oklch(88% 0.03 255)", "oklch(95% 0.03 255)"] },
+      "selection-blue-ring": { "role": "secondary", "displayName": "Selection Ring", "canonical": "#bfdbfe", "tonalRamp": ["oklch(15% 0.07 255)", "oklch(27% 0.07 255)", "oklch(39% 0.07 255)", "oklch(52% 0.07 255)", "oklch(65% 0.07 255)", "oklch(77% 0.07 255)", "oklch(88% 0.07 255)", "oklch(95% 0.07 255)"] },
+      "workspace-mist": { "role": "neutral", "displayName": "Workspace Mist", "canonical": "#eef1f4", "tonalRamp": ["oklch(15% 0.008 250)", "oklch(27% 0.008 250)", "oklch(39% 0.008 250)", "oklch(52% 0.008 250)", "oklch(65% 0.008 250)", "oklch(77% 0.008 250)", "oklch(88% 0.008 250)", "oklch(95% 0.008 250)"] },
+      "paper-white": { "role": "neutral", "displayName": "Paper White", "canonical": "#ffffff", "tonalRamp": ["oklch(15% 0 0)", "oklch(27% 0 0)", "oklch(39% 0 0)", "oklch(52% 0 0)", "oklch(65% 0 0)", "oklch(77% 0 0)", "oklch(88% 0 0)", "oklch(95% 0 0)"] },
+      "utility-surface": { "role": "neutral", "displayName": "Utility Surface", "canonical": "#f7f8fa", "tonalRamp": ["oklch(15% 0.005 250)", "oklch(27% 0.005 250)", "oklch(39% 0.005 250)", "oklch(52% 0.005 250)", "oklch(65% 0.005 250)", "oklch(77% 0.005 250)", "oklch(88% 0.005 250)", "oklch(95% 0.005 250)"] },
+      "slate-ink": { "role": "neutral", "displayName": "Slate Ink", "canonical": "#20242c", "tonalRamp": ["oklch(15% 0.015 255)", "oklch(27% 0.015 255)", "oklch(39% 0.015 255)", "oklch(52% 0.015 255)", "oklch(65% 0.015 255)", "oklch(77% 0.015 255)", "oklch(88% 0.015 255)", "oklch(95% 0.015 255)"] },
+      "slate-muted": { "role": "neutral", "displayName": "Slate Muted", "canonical": "#596273", "tonalRamp": ["oklch(15% 0.025 255)", "oklch(27% 0.025 255)", "oklch(39% 0.025 255)", "oklch(52% 0.025 255)", "oklch(65% 0.025 255)", "oklch(77% 0.025 255)", "oklch(88% 0.025 255)", "oklch(95% 0.025 255)"] },
+      "slate-line": { "role": "neutral", "displayName": "Slate Line", "canonical": "#dce1e8", "tonalRamp": ["oklch(15% 0.012 250)", "oklch(27% 0.012 250)", "oklch(39% 0.012 250)", "oklch(52% 0.012 250)", "oklch(65% 0.012 250)", "oklch(77% 0.012 250)", "oklch(88% 0.012 250)", "oklch(95% 0.012 250)"] },
+      "slate-line-strong": { "role": "neutral", "displayName": "Strong Slate Line", "canonical": "#c8d0da", "tonalRamp": ["oklch(15% 0.018 250)", "oklch(27% 0.018 250)", "oklch(39% 0.018 250)", "oklch(52% 0.018 250)", "oklch(65% 0.018 250)", "oklch(77% 0.018 250)", "oklch(88% 0.018 250)", "oklch(95% 0.018 250)"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Gallery and welcome-dialog headings." },
+      "headline": { "displayName": "Headline", "purpose": "Settings-panel task titles." },
+      "title": { "displayName": "Title", "purpose": "Product name and compact high-emphasis labels." },
+      "body": { "displayName": "Body", "purpose": "Dialog explanations and supporting guidance." },
+      "label": { "displayName": "Label", "purpose": "Buttons, fields, metadata, card names, and status values." }
+    },
+    "shadows": [
+      { "name": "workbench-ambient", "value": "0 24px 60px -24px rgb(15 23 42 / 0.32), 0 8px 20px -12px rgb(15 23 42 / 0.18)", "purpose": "Welcome dialog and transient feedback." },
+      { "name": "header-hairline", "value": "0 1px 2px rgb(15 23 42 / 0.06), 0 2px 6px rgb(15 23 42 / 0.03)", "purpose": "Fixed application headers." },
+      { "name": "primary-outcome", "value": "0 8px 18px -10px rgba(220, 38, 53, 0.9)", "purpose": "Resting import and export actions." },
+      { "name": "primary-outcome-hover", "value": "0 10px 22px -10px rgba(220, 38, 53, 0.95)", "purpose": "Hovered import and export actions." },
+      { "name": "card-rest", "value": "0 2px 8px -5px rgb(15 23 42 / 0.15)", "purpose": "Gallery cards at rest." },
+      { "name": "card-hover", "value": "0 6px 18px -8px rgb(15 23 42 / 0.2)", "purpose": "Gallery card hover lift." },
+      { "name": "image-artifact", "value": "0 6px 18px -8px rgb(15 23 42 / 0.28), 0 2px 5px rgb(15 23 42 / 0.08)", "purpose": "Separates the image canvas from its stage." }
+    ],
+    "motion": [
+      { "name": "state-quick", "value": "150ms ease", "purpose": "Gallery card and compact utility state changes." },
+      { "name": "outcome-standard", "value": "160ms ease", "purpose": "Primary outcome background, lift, and shadow." },
+      { "name": "import-response", "value": "180ms ease", "purpose": "Drop boundary and centered upload response." },
+      { "name": "panel-reveal", "value": "260ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Short entrance for a newly selected settings panel." },
+      { "name": "reduced-motion", "value": "0.01ms", "purpose": "Near-instant fallback for users who prefer reduced motion." }
+    ],
+    "breakpoints": [
+      { "name": "compact-desktop", "value": "1050px" },
+      { "name": "mobile", "value": "780px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Outcome Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The document-red action for importing, editing a selection, and downloading results.",
+      "html": "<button class=\"ds-primary-button\">Elegir imágenes</button>",
+      "css": ".ds-primary-button { min-height: 44px; padding: 0 22px; color: #fff; border: 0; border-radius: 10px; background: var(--green, #dc2635); font-family: 'Segoe UI Variable', Aptos, 'Segoe UI', ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 720; box-shadow: 0 8px 18px -10px rgba(220, 38, 53, 0.9); transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease; cursor: pointer; } .ds-primary-button:hover { background: var(--green-dark, #bd1726); transform: translateY(-1px); box-shadow: 0 10px 22px -10px rgba(220, 38, 53, 0.95); } .ds-primary-button:focus-visible { outline: 3px solid var(--focus, #2563eb); outline-offset: 3px; } .ds-primary-button:active { transform: translateY(0); }"
+    },
+    {
+      "name": "Toolbar Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A compact bordered secondary action used inside grouped header controls.",
+      "html": "<button class=\"ds-toolbar-button\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M12 3v12M7 8l5-5 5 5M5 21h14\"/></svg>Añadir</button>",
+      "css": ".ds-toolbar-button { min-height: 42px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; color: var(--muted, #596273); border: 1px solid var(--line, #dce1e8); border-radius: 10px; background: #fff; font-family: 'Segoe UI Variable', Aptos, 'Segoe UI', ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 650; box-shadow: 0 1px 2px rgb(15 23 42 / 0.04); cursor: pointer; } .ds-toolbar-button svg { width: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; } .ds-toolbar-button:hover { color: var(--ink, #20242c); border-color: #c8d0da; background: #f7f8fa; } .ds-toolbar-button:focus-visible { outline: 3px solid var(--focus, #2563eb); outline-offset: 3px; } .ds-toolbar-button:active { background: #eef1f4; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "A compact slate-bordered field for exact values and watermark text.",
+      "html": "<label class=\"ds-field\"><span>Texto</span><input placeholder=\"Tu nombre o centro\"></label>",
+      "css": ".ds-field { display: grid; gap: 8px; color: var(--ink, #20242c); font-family: 'Segoe UI Variable', Aptos, 'Segoe UI', ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 700; } .ds-field input { min-height: 48px; padding: 0 12px; color: var(--ink, #20242c); border: 1px solid var(--line, #dce1e8); border-radius: 10px; background: #f7f8fa; font: inherit; font-size: 13px; font-weight: 400; } .ds-field input:hover { border-color: #c8d0da; } .ds-field input:focus-visible { outline: 3px solid var(--focus, #2563eb); outline-offset: 3px; }"
+    },
+    {
+      "name": "Batch Selection Count",
+      "kind": "chip",
+      "refersTo": "selection-toolbar-count",
+      "description": "The compact selected/total counter that leads the floating batch-action dock.",
+      "html": "<span class=\"ds-selection-count\"><span>Seleccionadas</span><strong>2/4</strong></span>",
+      "css": ".ds-selection-count { height: 44px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 10px; background: #eff6ff; font-family: 'Segoe UI Variable', Aptos, 'Segoe UI', ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 650; white-space: nowrap; } .ds-selection-count strong { font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Active Tool Rail Item",
+      "kind": "nav",
+      "refersTo": "button-tool-active",
+      "description": "The compact icon-over-label control that exposes the current editing mode.",
+      "html": "<button class=\"ds-tool-item\" aria-current=\"page\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6\"/></svg><span>Mejorar</span></button>",
+      "css": ".ds-tool-item { width: 70px; min-height: 68px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 8px 3px; color: #1d4ed8; border: 0; border-radius: 10px; background: #dbeafe; box-shadow: inset 0 0 0 1px #bfdbfe; font-family: 'Segoe UI Variable', Aptos, 'Segoe UI', ui-sans-serif, system-ui, sans-serif; font-size: 10px; font-weight: 700; cursor: pointer; } .ds-tool-item svg { width: 21px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; } .ds-tool-item:hover { color: #1d4ed8; background: #eff6ff; } .ds-tool-item:focus-visible { outline: 3px solid var(--focus, #2563eb); outline-offset: 3px; } .ds-tool-item:active { background: #bfdbfe; }"
+    },
+    {
+      "name": "Selectable Image Card",
+      "kind": "card",
+      "description": "A selectable gallery card with separate 44px Edit and read-only Compare actions.",
+      "html": "<article class=\"ds-image-card ds-selected\"><button class=\"ds-image-card-select\" aria-pressed=\"true\"><span class=\"ds-image-thumb\"><svg aria-hidden=\"true\" viewBox=\"0 0 80 60\"><rect x=\"8\" y=\"8\" width=\"64\" height=\"44\" rx=\"2\"/><circle cx=\"28\" cy=\"30\" r=\"10\"/><path d=\"M43 24h20M43 31h16M43 38h18\"/></svg></span><span class=\"ds-selection-order\">1</span><span class=\"ds-image-meta\"><strong>imagen-clase.png</strong><small>591 B</small></span></button><span class=\"ds-image-card-actions\"><button class=\"ds-image-card-action\" aria-label=\"Editar imagen\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z\"/></svg></button><button class=\"ds-image-card-action\" aria-label=\"Comparar imagen\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M8 3 4 7l4 4M4 7h12a4 4 0 0 1 4 4M16 21l4-4-4-4M20 17H8a4 4 0 0 1-4-4\"/></svg></button></span></article>",
+      "css": ".ds-image-card { position: relative; width: 230px; overflow: hidden; color: var(--ink, #20242c); border: 1px solid var(--line, #dce1e8); border-radius: 12px; background: #fff; box-shadow: 0 2px 8px -5px rgb(15 23 42 / 0.15); font-family: 'Segoe UI Variable', Aptos, 'Segoe UI', ui-sans-serif, system-ui, sans-serif; transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease; } .ds-image-card:hover { border-color: #aeb7c3; transform: translateY(-1px); box-shadow: 0 6px 18px -8px rgb(15 23 42 / 0.2); } .ds-image-card.ds-selected { border-color: #2563eb; box-shadow: 0 0 0 2px #bfdbfe, 0 6px 18px -8px rgb(37 99 235 / 0.25); } .ds-image-card-select { width: 100%; display: flex; flex-direction: column; padding: 7px; text-align: left; color: inherit; border: 0; background: transparent; cursor: pointer; } .ds-image-card-select:focus-visible, .ds-image-card-action:focus-visible { outline: 3px solid var(--focus, #2563eb); outline-offset: -3px; } .ds-image-thumb { height: 150px; display: grid; place-items: center; border-radius: 8px; background: #fff; overflow: hidden; } .ds-image-thumb svg { width: 78%; fill: #fff; stroke: #596273; stroke-width: 3; } .ds-image-thumb circle { fill: #2563eb; stroke: none; } .ds-selection-order { position: absolute; top: 12px; left: 12px; min-width: 26px; height: 26px; display: grid; place-items: center; color: #fff; border: 2px solid #fff; border-radius: 999px; background: #2563eb; box-shadow: 0 2px 6px rgb(15 23 42 / 0.18); font-size: 11px; font-weight: 800; } .ds-image-card-actions { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 4px; } .ds-image-card-action { width: 44px; height: 44px; display: grid; place-items: center; padding: 0; color: #485163; border: 1px solid var(--line, #dce1e8); border-radius: 9px; background: #fff; cursor: pointer; } .ds-image-card-action:hover { color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; } .ds-image-card-action:active { background: #dbeafe; } .ds-image-card-action svg { width: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; } .ds-image-meta { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 11px 4px 3px; } .ds-image-meta strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; } .ds-image-meta small { color: #596273; font-size: 10px; }"
+    },
+    {
+      "name": "Import Workspace",
+      "kind": "custom",
+      "description": "The dominant first-view drop area for beginning an image workflow without promotional detours.",
+      "html": "<section class=\"ds-import-workspace\"><span class=\"ds-upload-icon\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M12 3v12M7 8l5-5 5 5M5 21h14\"/></svg></span><strong>Arrastra y suelta imágenes aquí</strong><span>O pégalas desde el portapapeles</span><button>Elegir imágenes</button><small>JPG, PNG, WebP, GIF o SVG · hasta 40 MB</small></section>",
+      "css": ".ds-import-workspace { min-height: 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 32px; color: var(--ink, #20242c); border: 1px dashed #c8d0da; border-radius: 16px; background: rgba(255,255,255,0.72); font-family: 'Segoe UI Variable', Aptos, 'Segoe UI', ui-sans-serif, system-ui, sans-serif; transition: border-color 180ms ease, background 180ms ease; } .ds-import-workspace:hover { border-color: #dc2635; background: #fffafa; } .ds-upload-icon { width: 68px; height: 68px; display: grid; place-items: center; margin-bottom: 16px; color: #dc2635; border: 1px solid #dce1e8; border-radius: 16px; background: #fff; box-shadow: 0 6px 18px -8px rgb(15 23 42 / 0.18), 0 2px 5px rgb(15 23 42 / 0.05); } .ds-upload-icon svg { width: 25px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; } .ds-import-workspace strong { font-size: 24px; letter-spacing: -0.025em; } .ds-import-workspace > span:not(.ds-upload-icon) { color: #596273; font-size: 15px; } .ds-import-workspace button { min-height: 44px; margin-top: 14px; padding: 0 22px; color: #fff; border: 0; border-radius: 10px; background: #dc2635; font: inherit; font-size: 12px; font-weight: 720; cursor: pointer; } .ds-import-workspace button:hover { background: #bd1726; } .ds-import-workspace button:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; } .ds-import-workspace small { margin-top: 8px; color: #596273; font-size: 12px; }"
+    },
+    {
+      "name": "First-Run Dialog",
+      "kind": "custom",
+      "description": "A compact onboarding surface that explains image-specific value and privacy before work begins.",
+      "html": "<section class=\"ds-welcome-dialog\"><div class=\"ds-welcome-heading\"><span>▧</span><h2>Bienvenido a Image in Place</h2></div><p>Edita, adapta y protege imágenes directamente en tu navegador.</p><div class=\"ds-welcome-feature\">Privado por diseño: todo se procesa localmente</div><label><input type=\"checkbox\"> No mostrar esta página la próxima vez</label><button>Empezar</button></section>",
+      "css": ".ds-welcome-dialog { width: min(448px, 100%); padding: 34px 32px 24px; color: #20242c; border-radius: 18px; background: #fff; box-shadow: 0 24px 60px -24px rgb(15 23 42 / 0.32), 0 8px 20px -12px rgb(15 23 42 / 0.18); font-family: 'Segoe UI Variable', Aptos, 'Segoe UI', ui-sans-serif, system-ui, sans-serif; } .ds-welcome-heading { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; } .ds-welcome-heading > span { width: 38px; height: 38px; display: grid; place-items: center; color: #fff; border-radius: 10px; background: #dc2635; } .ds-welcome-heading h2 { margin: 0; font-size: 24px; line-height: 1.25; letter-spacing: -0.025em; } .ds-welcome-dialog p { color: #596273; font-size: 14px; line-height: 1.7; } .ds-welcome-feature { padding: 14px; border-radius: 12px; background: #f7f8fa; font-size: 13px; font-weight: 700; } .ds-welcome-dialog label { min-height: 62px; display: flex; align-items: center; gap: 10px; margin-top: 22px; border-top: 1px solid #dce1e8; color: #596273; font-size: 13px; } .ds-welcome-dialog input { width: 18px; height: 18px; accent-color: #dc2635; } .ds-welcome-dialog button { min-height: 44px; float: right; padding: 0 22px; color: #fff; border: 0; border-radius: 10px; background: #dc2635; font: inherit; font-size: 12px; font-weight: 720; cursor: pointer; } .ds-welcome-dialog button:hover { background: #bd1726; } .ds-welcome-dialog button:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "PDF in Place Workbench",
+    "overview": "Image in Place is a private document-style workbench translated for images. It opens directly onto the task, using paper-white controls on a cool workspace mist so imported images, selection state, and the current editing outcome remain immediately legible. The atmosphere is calm, compact, familiar, and deliberately closer to a dependable desktop utility than a promotional website.\n\nThe experience moves through three viewport-fitted states: a dominant import workspace, a selectable image gallery, and a shared editor. Document red identifies the product and irreversible forward outcomes; selection blue identifies focus, chosen items, active tools, and in-canvas editing. Soft slate structure, controlled internal scrolling, compact radii, and restrained ambient shadows keep complex work approachable.",
+    "keyCharacteristics": [
+      "Viewport-fitted home, gallery, and editor shells with overflow contained inside work areas.",
+      "Paper-white tools and panels floating lightly over cool workspace mist.",
+      "Document red for brand and primary outcomes; selection blue for edit state and focus.",
+      "Compact system sans typography with a dense but readable 10–24px hierarchy.",
+      "Rounded 10–18px workbench geometry, with 8px image wells and pill selection indicators.",
+      "Selectable gallery cards, paired per-image edit and compare actions, and a floating batch dock that make individual and multi-image work explicit."
+    ],
+    "rules": [
+      { "name": "The Two-Accent Rule", "body": "Red means product or forward outcome; blue means selection, focus, or editing state. Never swap their roles or use both as competing decoration.", "section": "colors" },
+      { "name": "The Compact Native Rule", "body": "Use the shared system stack everywhere and create hierarchy through weight and spacing; do not introduce an editorial or decorative display font.", "section": "typography" },
+      { "name": "The Contained Workspace Rule", "body": "Fit every primary surface to the viewport and place scrolling on the gallery grid, rails, panels, strips, or mobile editor—not on the document body.", "section": "layout" },
+      { "name": "The Ambient-Only Rule", "body": "Shadows clarify stacking and interaction; they never become dramatic decoration or replace the border system.", "section": "elevation" },
+      { "name": "The Nested Radius Rule", "body": "Smaller objects inside larger containers step down in radius; do not give every layer the same silhouette.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do keep home, gallery, and editor fitted to 100dvh with overflow owned by their internal work areas.",
+      "Do use document red only for brand, import/export, and decisive forward outcomes.",
+      "Do use selection blue for focus, selected cards, active tools, ranges, and image-editing overlays.",
+      "Do preserve compact nested radii and one-pixel slate borders on paper-white surfaces.",
+      "Do keep primary mobile controls and icon actions at least 44px in both dimensions.",
+      "Do retain the gallery selection order when a batch action depends on it.",
+      "Do keep individual editing on the card pencil and multi-image tools in the persistent bottom dock.",
+      "Do keep card Edit and Compare as a persistent vertical pair of separate 44px actions.",
+      "Do hold individual compression, rename, and canvas changes in the local draft until Save or save-and-navigate."
+    ],
+    "donts": [
+      "Don't restore the former mineral-paper, serif-led Light Table language.",
+      "Don't make the document body scroll or allow galleries and editor panels to escape the viewport shell.",
+      "Don't use red to indicate ordinary selection or blue as the primary import/export color.",
+      "Don't turn every surface into a heavily shadowed floating card; borders and tonal layering carry most structure.",
+      "Don't add oversized marketing typography, broad decorative gradients, or ornamental imagery to the workbench.",
+      "Don't hide selected state behind color alone; preserve borders, halos, labels, or order markers.",
+      "Don't place Compare in the individual editor rail or give the read-only comparator a save action.",
+      "Don't commit individual draft changes when the user cancels or closes the editor."
+    ]
+  }
+}

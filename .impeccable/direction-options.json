@@ -1,0 +1,145 @@
+{
+  "title": "Elige el lenguaje de Image in Place",
+  "question": "Las tres opciones priorizan la facilidad de uso, pero organizan el trabajo de forma distinta. Elige la que deba guiar toda la aplicación.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Mesa de luz",
+      "kicker": "THE ROLL",
+      "lineage": "mesas de revisión fotográfica y conservación",
+      "thesis": "La imagen ocupa el centro y las herramientas se ordenan alrededor como instrumentos precisos, tranquilos y siempre visibles.",
+      "palette": ["#F4F0E7", "#17201D", "#176B5B", "#E66A49"],
+      "materials": ["vidrio retroiluminado", "marcas de registro", "papel mineral"],
+      "viewport": "Una gran superficie de carga muestra de inmediato privacidad, tareas frecuentes y un carril especial para el aula.",
+      "risk": "Puede sentirse demasiado sobria si las muestras visuales no aportan energía.",
+      "raised": [
+        {"from": "Miura", "raise": "Cada ajuste conserva una relación visible entre origen, transformación y resultado."},
+        {"from": "Tensegridad", "raise": "Los estados de listo, procesando y exportado se distinguen sin depender solo del color."},
+        {"from": "Terminal", "raise": "Todo el recorrido principal funciona con teclado."},
+        {"from": "Cracktro", "raise": "La tarea activa domina y el resto del catálogo se retira visualmente."}
+      ],
+      "wireframe": {"cols": 12, "rows": 9, "regions": [
+        {"label": "marca y privacidad", "x": 0, "y": 0, "w": 12, "h": 1},
+        {"label": "suelta tu imagen", "x": 0, "y": 1, "w": 8, "h": 5, "accent": true},
+        {"label": "tareas rápidas", "x": 8, "y": 1, "w": 4, "h": 5},
+        {"label": "para clase", "x": 0, "y": 6, "w": 12, "h": 3}
+      ]}
+    },
+    {
+      "id": "model-pick",
+      "label": "Manual visual",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "manuales didácticos suizos y cuadernos de recursos",
+      "thesis": "Cada tarea se explica con una frase clara y un ejemplo visual antes de abrir sus controles.",
+      "palette": ["#FFFDF7", "#172331", "#2864DC", "#F2B84B"],
+      "materials": ["papel sin estucar", "tinta azul", "diagramas editoriales"],
+      "viewport": "Una portada editorial convierte las operaciones más comunes en instrucciones visuales de un solo paso.",
+      "risk": "Es la dirección más familiar y puede parecer otra biblioteca de recursos si pierde protagonismo la imagen.",
+      "wireframe": {"cols": 12, "rows": 9, "regions": [
+        {"label": "marca", "x": 0, "y": 0, "w": 3, "h": 1},
+        {"label": "elige lo que necesitas", "x": 0, "y": 1, "w": 5, "h": 4, "accent": true},
+        {"label": "ejemplo visual", "x": 5, "y": 1, "w": 7, "h": 4},
+        {"label": "guías de un paso", "x": 0, "y": 5, "w": 12, "h": 4}
+      ]}
+    },
+    {
+      "id": "challenger-wayfinding",
+      "label": "Señalética directa",
+      "verdict": "competitive",
+      "lineage": "sistemas de orientación de aeropuertos",
+      "thesis": "La interfaz se comporta como una ruta: en cada pantalla solo aparece la próxima decisión útil.",
+      "palette": ["#F4C430", "#11130F", "#FFFFFF", "#DDE3DA"],
+      "materials": ["panel esmaltado", "pictogramas", "bandas direccionales"],
+      "viewport": "Tres destinos monumentales —mejorar, adaptar y enseñar— conducen a herramientas concretas.",
+      "case": "Iguala la claridad del producto, aunque su identidad con el mundo docente es menos directa.",
+      "risk": "El amarillo dominante exige disciplina para no resultar intenso durante una edición larga.",
+      "hero": "https://impeccable.style/worlds/cards/wayfinding-cartography-signage-terminal-yellow-wayfinding-hero.webp",
+      "wireframe": {"cols": 12, "rows": 9, "regions": [
+        {"label": "Image in Place", "x": 0, "y": 0, "w": 12, "h": 1},
+        {"label": "MEJORAR →", "x": 0, "y": 1, "w": 12, "h": 2, "accent": true},
+        {"label": "ADAPTAR →", "x": 0, "y": 3, "w": 12, "h": 2},
+        {"label": "ENSEÑAR →", "x": 0, "y": 5, "w": 12, "h": 2},
+        {"label": "procesado local", "x": 0, "y": 7, "w": 12, "h": 2}
+      ]}
+    },
+    {
+      "id": "challenger-streaming",
+      "label": "Catálogo visual",
+      "verdict": "competitive",
+      "lineage": "muros de contenido de plataformas audiovisuales",
+      "thesis": "Las herramientas aparecen como carriles de resultados visuales que se amplían al enfocarlas.",
+      "palette": ["#151716", "#F6F7F5", "#92E3C0", "#FF8066"],
+      "materials": ["miniaturas a sangre", "fondo profundo", "foco luminoso"],
+      "viewport": "Filas de tareas para clase, preparar y proteger muestran el resultado antes de elegir.",
+      "case": "Hace el catálogo muy explorable, pero sacrifica algo de serenidad y precisión en sesiones largas.",
+      "risk": "Puede recordar a una plataforma de entretenimiento más que a una herramienta fiable.",
+      "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-streaming-title-card-wall-hero.webp",
+      "wireframe": {"cols": 12, "rows": 9, "regions": [
+        {"label": "marca y buscar", "x": 0, "y": 0, "w": 12, "h": 1},
+        {"label": "para clase", "x": 0, "y": 1, "w": 12, "h": 2, "accent": true},
+        {"label": "preparar", "x": 0, "y": 3, "w": 12, "h": 2},
+        {"label": "proteger", "x": 0, "y": 5, "w": 12, "h": 2},
+        {"label": "suelta una imagen", "x": 0, "y": 7, "w": 12, "h": 2}
+      ]}
+    },
+    {
+      "id": "challenger-miura",
+      "label": "Pliegue Miura",
+      "verdict": "declined",
+      "lineage": "estructuras de papel desplegables",
+      "thesis": "Cada herramienta se despliega desde una hoja compacta.",
+      "palette": ["#F7F5EF", "#181B19", "#D7A72C", "#C9E1E8"],
+      "materials": ["papel plegado", "foil dorado"],
+      "viewport": "La imagen abre una red de transformaciones conectadas.",
+      "case": "La metáfora añade aprendizaje antes de aportar utilidad.",
+      "kept": "Relación explícita entre cada ajuste y su resultado.",
+      "risk": "Puede convertir acciones sencillas en un mapa complejo.",
+      "hero": "https://impeccable.style/worlds/cards/paper-folds-pleats-deployable-miura-orbit-sheet-hero.webp"
+    },
+    {
+      "id": "challenger-tensegrity",
+      "label": "Tensegridad",
+      "verdict": "declined",
+      "lineage": "escultura cinética estructural",
+      "thesis": "Los ajustes se visualizan como fuerzas conectadas.",
+      "palette": ["#E9E7E1", "#181918", "#D8433E", "#8B908B"],
+      "materials": ["fibra de carbono", "cordón tensado"],
+      "viewport": "Una red responde en vivo a cada cambio de imagen.",
+      "case": "La forma es memorable pero no se identifica con una tarea cotidiana.",
+      "kept": "Estados de proceso inequívocos y conectados.",
+      "risk": "Demasiado técnica para una primera visita.",
+      "hero": "https://impeccable.style/worlds/cards/kinetic-sculpture-automata-tensegrity-breathing-column-hero.webp"
+    },
+    {
+      "id": "challenger-terminal",
+      "label": "Terminal de fósforo",
+      "verdict": "declined",
+      "lineage": "terminales monocromos de sala de máquinas",
+      "thesis": "Las operaciones se ejecutan como una conversación de comandos.",
+      "palette": ["#07110B", "#78F09A", "#2C6D40"],
+      "materials": ["vidrio curvo", "fósforo verde"],
+      "viewport": "Una línea guiada pregunta qué hacer con la imagen.",
+      "case": "La operación por teclado es potente, pero intimida al público principal.",
+      "kept": "Recorrido completo y eficiente con teclado.",
+      "risk": "Asocia el producto con programación en vez de facilidad.",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-phosphor-terminal-midnight-hero.webp"
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code", "toggle": false},
+  "canon": true,
+  "canonCard": {
+    "label": "La opción convencional",
+    "thesis": "Una biblioteca limpia de herramientas de imagen, ejecutada con mucho cuidado.",
+    "palette": ["#FFFFFF", "#172033", "#2563EB", "#EEF2F7"],
+    "materials": ["rejilla limpia", "iconografía funcional"],
+    "viewport": "Un gran botón de carga seguido por una cuadrícula de utilidades.",
+    "risk": "Es clara, pero se confunde fácilmente con cualquier competidor.",
+    "wireframe": {"cols": 12, "rows": 9, "regions": [
+      {"label": "cabecera", "x": 0, "y": 0, "w": 12, "h": 1},
+      {"label": "subir imagen", "x": 2, "y": 1, "w": 8, "h": 3, "accent": true},
+      {"label": "herramientas", "x": 0, "y": 4, "w": 12, "h": 5}
+    ]}
+  },
+  "steer": true
+}
