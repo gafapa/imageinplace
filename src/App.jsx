@@ -7,6 +7,9 @@ import CanvasPanel from './features/CanvasPanel';
 import PrintSheetPanel from './features/PrintSheetPanel';
 import WorkflowPanel from './features/WorkflowPanel';
 import CompareDialog from './features/CompareDialog';
+import BackgroundPanel from './features/BackgroundPanel';
+import TrimPanel from './features/TrimPanel';
+import { flattenForFormat } from './features/background';
 import { initialSettings, formatBytes, loadImage, getCrop, renderImage, saveFormatFor, nameForType, SAVE_QUALITY } from './features/imageEngine';
 import {
   ArrowDownToLine,
@@ -15,6 +18,7 @@ import {
   CheckSquare2,
   ChevronDown,
   Crop,
+  Eraser,
   FlipHorizontal2,
   Gauge,
   Image as ImageIcon,
@@ -25,6 +29,7 @@ import {
   Redo2,
   RotateCcw,
   RotateCw,
+  Scan,
   ScanFace,
   ShieldCheck,
   SlidersHorizontal,
@@ -50,6 +55,8 @@ const tools = [
   { id: 'adjust', label: 'Mejorar', description: 'Luz, color y nitidez', icon: SlidersHorizontal },
   { id: 'resize', label: 'Tamaño', description: 'Medidas exactas', icon: Maximize2 },
   { id: 'crop', label: 'Recortar', description: 'Encuadre y proporción', icon: Crop },
+  { id: 'trim', label: 'Recortar al contenido', description: 'Quita bordes vacíos', icon: Scan },
+  { id: 'background', label: 'Quitar fondo', description: 'Fondo transparente', icon: Eraser },
   { id: 'rotate', label: 'Girar', description: 'Gira o refleja', icon: RotateCw },
   { id: 'privacy', label: 'Ocultar', description: 'Protege datos y caras', icon: ScanFace },
   { id: 'watermark', label: 'Marca', description: 'Añade autoría', icon: Stamp },
@@ -236,6 +243,8 @@ function Gallery({ notice, onDismissNotice, items, selectedIds, setSelectedIds, 
     { id: 'adjust', label: 'Mejorar imágenes seleccionadas', icon: SlidersHorizontal },
     { id: 'resize', label: 'Cambiar tamaño de imágenes seleccionadas', icon: Maximize2 },
     { id: 'crop', label: 'Recortar imágenes seleccionadas', icon: Crop },
+    { id: 'trim', label: 'Recortar al contenido', icon: Scan },
+    { id: 'background', label: 'Quitar fondo', icon: Eraser },
     { id: 'rotate', label: 'Girar imágenes seleccionadas', icon: RotateCw },
     { id: 'watermark', label: 'Añadir marca a imágenes seleccionadas', icon: Stamp },
     { id: 'compress', label: 'Comprimir a un peso objetivo', icon: Gauge },
@@ -301,6 +310,8 @@ function Gallery({ notice, onDismissNotice, items, selectedIds, setSelectedIds, 
               if (batchAction.toolId === 'compress') return <CompressionPanel {...panelProps} />;
               if (batchAction.toolId === 'rename') return <RenamePanel {...panelProps} allItems={items} onRename={onRename} />;
               if (batchAction.toolId === 'canvas') return <CanvasPanel {...panelProps} />;
+              if (batchAction.toolId === 'background') return <BackgroundPanel {...panelProps} />;
+              if (batchAction.toolId === 'trim') return <TrimPanel {...panelProps} />;
               if (batchAction.toolId === 'print') return <PrintSheetPanel {...panelProps} />;
               if (batchAction.toolId === 'workflow') return <WorkflowPanel {...panelProps} allItems={items} />;
               return <BatchPanel key={batchAction.toolId} action={batchAction.toolId} {...panelProps} />;
@@ -382,7 +393,7 @@ function BatchPanel({ action, items, onApply, onClose, onBusy, onPreview }) {
         renderImage(source, canvas, settings, size, []);
         const format = action === 'export' ? settings.format : saveFormatFor(item.type);
         const quality = action === 'export' ? settings.quality / 100 : SAVE_QUALITY;
-        const blob = await new Promise((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error('Encoding failed')), format, quality));
+        const blob = await new Promise((resolve, reject) => flattenForFormat(canvas, format).toBlob((value) => value ? resolve(value) : reject(new Error('Encoding failed')), format, quality));
         results.push({ item, blob });
         setProgress(results.length);
       }

@@ -7,6 +7,8 @@ Image in Place is a privacy-first image toolbox designed for teachers and useful
 - Brightness, contrast, saturation, grayscale, sepia, and blur adjustments
 - Exact resize with optional aspect-ratio locking and useful presets
 - Crop controls and presets for slides, square images, and A4 worksheets
+- Background removal: makes a uniform background that touches the edges transparent (logos, scanned drawings, screenshots, product photos), with tolerance, soft de-haloed edges, optional removal of enclosed areas, and PNG output; works individually or in batches
+- Trim to content: crops transparent or uniform-colour margins around the content, with tolerance and optional padding, individually or in batches
 - Rotation and horizontal reflection
 - Privacy zones for faces, names, and other sensitive information: adaptive pixelation (at most ~8 blocks on the short side) or a solid fill, recommended for text
 - Text watermarks with position, size, and opacity controls

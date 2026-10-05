@@ -7,8 +7,13 @@ import CompressionPanel from './CompressionPanel';
 import RenamePanel from './RenamePanel';
 import CanvasPanel from './CanvasPanel';
 import WorkflowPanel from './WorkflowPanel';
+import BackgroundPanel from './BackgroundPanel';
+import TrimPanel from './TrimPanel';
+import { flattenForFormat } from './background';
 
 const HISTORY_LIMIT = 30;
+// Tools that work on the current draft as a file and hand back a new one.
+const PANEL_TOOLS = ['compress', 'rename', 'canvas', 'workflow', 'background', 'trim'];
 // Consecutive changes to the same control within this window collapse into one undo step.
 const HISTORY_GROUP_MS = 800;
 
@@ -86,7 +91,7 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
     if (source && canvasRef.current) setPreviewDimensions({ width: canvasRef.current.width, height: canvasRef.current.height });
     /* eslint-enable react-hooks/set-state-in-effect */
     const timer = window.setTimeout(() => {
-      canvasRef.current?.toBlob((blob) => setEstimatedSize(blob?.size || 0), settings.format, settings.quality / 100);
+      if (canvasRef.current) flattenForFormat(canvasRef.current, settings.format).toBlob((blob) => setEstimatedSize(blob?.size || 0), settings.format, settings.quality / 100);
     }, 180);
     return () => window.clearTimeout(timer);
   }, [activeTool, source, settings, outputSize, privacyAreas, annotations]);
@@ -121,7 +126,7 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
 
   const chooseTool = async (toolId) => {
     if (actionBusy || saving || !source) return;
-    if (!['compress', 'rename', 'canvas', 'workflow'].includes(toolId)) { setActiveTool(toolId); return; }
+    if (!PANEL_TOOLS.includes(toolId)) { setActiveTool(toolId); return; }
     setActionBusy(true); setLoadError('');
     try {
       const blob = await currentBlob();
@@ -206,7 +211,7 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
     renderImage(targetSource, targetCanvas, settings, targetSize, privacyAreas);
     renderAnnotations(targetCanvas.getContext('2d'), annotations, targetCanvas.width, targetCanvas.height);
     return new Promise((resolve, reject) => {
-      targetCanvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Export failed')), settings.format, settings.quality / 100);
+      flattenForFormat(targetCanvas, settings.format).toBlob((blob) => blob ? resolve(blob) : reject(new Error('Export failed')), settings.format, settings.quality / 100);
     });
   };
 
@@ -397,7 +402,7 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
 
         <aside className="settings-panel">
           <div key={activeTool} className="panel-content">
-            {activeTool === 'annotate' ? <AnnotationsPanel annotations={annotations} selectedId={selectedAnnotationId} onSelect={setSelectedAnnotationId} onChange={updateAnnotations} onAdd={addAnnotation} onDelete={deleteAnnotation} /> : activeTool === 'compress' ? <CompressionPanel items={actionItems} onApply={applyIndividualResults} onClose={() => setActiveTool('adjust')} onBusy={setActionBusy} /> : activeTool === 'rename' ? <RenamePanel items={actionItems} allItems={items} onRename={applyIndividualRename} onClose={() => setActiveTool('adjust')} /> : activeTool === 'canvas' ? <CanvasPanel items={actionItems} onApply={applyIndividualResults} onClose={() => setActiveTool('adjust')} onBusy={setActionBusy} /> : activeTool === 'workflow' ? <WorkflowPanel allItems={items} items={actionItems} onApply={applyIndividualResults} onClose={() => setActiveTool('adjust')} onBusy={setActionBusy} /> : <ToolPanel {...{ activeTool, settings, setSetting, outputSize, setOutputSize: updateOutputSize, aspectLocked, setAspectLocked, source, privacyAreas, selectedArea, setSelectedArea, addPrivacyArea, updatePrivacyArea: updateSelectedPrivacyArea, deletePrivacyArea, estimatedSize }} />}
+            {activeTool === 'annotate' ? <AnnotationsPanel annotations={annotations} selectedId={selectedAnnotationId} onSelect={setSelectedAnnotationId} onChange={updateAnnotations} onAdd={addAnnotation} onDelete={deleteAnnotation} /> : activeTool === 'compress' ? <CompressionPanel items={actionItems} onApply={applyIndividualResults} onClose={() => setActiveTool('adjust')} onBusy={setActionBusy} /> : activeTool === 'rename' ? <RenamePanel items={actionItems} allItems={items} onRename={applyIndividualRename} onClose={() => setActiveTool('adjust')} /> : activeTool === 'canvas' ? <CanvasPanel items={actionItems} onApply={applyIndividualResults} onClose={() => setActiveTool('adjust')} onBusy={setActionBusy} /> : activeTool === 'background' ? <BackgroundPanel items={actionItems} onApply={applyIndividualResults} onClose={() => setActiveTool('adjust')} onBusy={setActionBusy} /> : activeTool === 'trim' ? <TrimPanel items={actionItems} onApply={applyIndividualResults} onClose={() => setActiveTool('adjust')} onBusy={setActionBusy} /> : activeTool === 'workflow' ? <WorkflowPanel allItems={items} items={actionItems} onApply={applyIndividualResults} onClose={() => setActiveTool('adjust')} onBusy={setActionBusy} /> : <ToolPanel {...{ activeTool, settings, setSetting, outputSize, setOutputSize: updateOutputSize, aspectLocked, setAspectLocked, source, privacyAreas, selectedArea, setSelectedArea, addPrivacyArea, updatePrivacyArea: updateSelectedPrivacyArea, deletePrivacyArea, estimatedSize }} />}
           </div>
           {activeTool === 'export' && <button className="primary-button" onClick={exportImage} disabled={!source || saving}>Descargar</button>}
           <button className="reset-button" disabled={!source || actionBusy || saving} onClick={() => { recordHistory(); setSettings(initialSettings); customSizeRef.current = false; setOutputSize({ width: source.naturalWidth, height: source.naturalHeight }); setPrivacyAreas([]); setAnnotations([]); setSelectedAnnotationId(null); setSelectedArea(0); }}><RotateCcw size={16} /> Restablecer ajustes</button>

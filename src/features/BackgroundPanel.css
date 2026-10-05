@@ -1,0 +1,7 @@
+.background-panel { display: grid; gap: 12px; }
+.background-preview { display: grid; gap: 6px; margin: 0; }
+.background-preview img { display: block; max-width: 100%; max-height: 200px; margin: 0 auto; object-fit: contain; border: 1px solid var(--line); border-radius: 8px; }
+.background-preview figcaption { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--muted); font-size: 12px; text-align: center; }
+.background-swatch { display: inline-block; width: 14px; height: 14px; border: 1px solid #c8d0da; border-radius: 4px; }
+.background-panel .batch-heading { display: flex; justify-content: space-between; align-items: flex-start; }
+.background-panel .panel-kicker { display: inline-flex; align-items: center; gap: 6px; }
