@@ -18,7 +18,11 @@ const cards = page.locator('.image-card-select');
 await cards.first().waitFor();
 assert.equal(await cards.count(), 2, 'Import must not duplicate the first file');
 const initialUrls = await page.locator('.image-thumb img').evaluateAll((images) => images.map((image) => image.src));
-const action = (name) => page.getByRole('button', { name, exact: true }).click();
+const action = async (name) => {
+  const button = page.getByRole('button', { name, exact: true });
+  if (!(await button.isVisible())) await page.getByRole('button', { name: 'Más acciones', exact: true }).click();
+  await button.click();
+};
 const sidebar = page.locator('.gallery-side-panel');
 await action('Márgenes y lienzo');
 await sidebar.getByLabel('Ancho del lienzo (px)', { exact: true }).fill('400');
@@ -58,7 +62,7 @@ await page.getByRole('button', { name: 'Anotar', exact: true }).click();
 await page.getByRole('button', { name: 'Texto', exact: true }).click();
 await page.getByLabel('Texto / número', { exact: true }).fill('Lección 1');
 await page.screenshot({ path: `${output}/annotations.png` });
-await page.getByRole('button', { name: 'Guardar edición', exact: true }).click();
+await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click();
 await page.waitForFunction(() => !document.querySelector('.individual-editor'));
 // Select both restored images explicitly after testing deletion undo.
 for (let index = 0; index < await cards.count(); index++) {

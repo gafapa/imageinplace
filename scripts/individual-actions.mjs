@@ -47,7 +47,7 @@ try {
   assert.deepEqual(pixel, [255,255,255,255], 'Canvas must receive rotated draft and not rotate again');
   await tool('Deshacer'); await dimensions(180, 320);
   await tool('Rehacer'); await dimensions(400, 400);
-  await tool('Cancelar edición');
+  await tool('Descartar');
   assert.deepEqual(await urls(), originalUrls, 'Applied draft must be discarded by Cancel');
 
   await open(); await tool('Renombrar');
@@ -55,7 +55,7 @@ try {
   await tool('Aplicar nombres');
   await tool('Deshacer'); assert.match(await editor.locator('h2').first().innerText(), /a.svg/);
   await tool('Rehacer'); assert.match(await editor.locator('h2').first().innerText(), /Nombre-nuevo.svg/);
-  await tool('Guardar edición'); await editor.waitFor({state:'detached'});
+  await tool('Guardar cambios'); await editor.waitFor({state:'detached'});
   const renamed = (await urls())[0];
   assert.equal(await page.evaluate(async (url) => (await fetch(url)).text(), renamed), svg, 'Rename must preserve original bytes');
   assert.equal((await urls())[1], originalUrls[1]);
@@ -63,7 +63,7 @@ try {
   await open(); await tool('Comprimir');
   await editor.getByLabel('Tamaño máximo por imagen (KB)').fill('20');
   await tool('Comprimir selección'); await tool('Aplicar resultados');
-  await tool('Guardar edición'); await editor.waitFor({state:'detached'});
+  await tool('Guardar cambios'); await editor.waitFor({state:'detached'});
   const compressed = await page.evaluate(async (url) => { const blob = await (await fetch(url)).blob(); return {type:blob.type,size:blob.size}; }, (await urls())[0]);
   assert.equal(compressed.type, 'image/jpeg'); assert.ok(compressed.size <= 20 * 1024);
   assert.equal((await urls())[1], originalUrls[1]);
@@ -73,7 +73,7 @@ try {
   await editor.getByLabel('Tipo de paso').selectOption('rename'); await tool('Añadir paso');
   await editor.getByLabel('Patrón', {exact:true}).fill('Final-{n}');
   await tool('Aplicar flujo'); await dimensions(100,56);
-  await tool('Guardar edición'); await editor.waitFor({state:'detached'});
+  await tool('Guardar cambios'); await editor.waitFor({state:'detached'});
   assert.equal(await page.locator('.image-card-meta strong').first().innerText(), 'Final-01.jpg');
   assert.equal((await urls())[1], originalUrls[1]);
   assert.deepEqual(errors, []);

@@ -67,11 +67,16 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
   if (ON_DEMAND.has(url.pathname) && !url.search) {
     event.respondWith((async () => {
-      const cache = await caches.open(ON_DEMAND_CACHE);
-      const cached = await cache.match(url.pathname);
+      let cache;
+      let cached;
+      try { cache = await caches.open(ON_DEMAND_CACHE); cached = await cache.match(url.pathname); }
+      catch { /* Storage is optional; online tools must still work. */ }
       if (cached) return cached;
       const response = await fetch(request);
-      if (response.ok && response.status === 200) await cache.put(url.pathname, response.clone());
+      if (cache && response.ok && response.status === 200) {
+        try { await cache.put(url.pathname, response.clone()); }
+        catch { /* A full cache must not discard a successful download. */ }
+      }
       return response;
     })());
     return;
@@ -79,8 +84,12 @@ self.addEventListener('fetch', (event) => {
   const navigation = request.mode === 'navigate' && (url.pathname === '/' || url.pathname === '/index.html');
   if (!navigation && (!ALLOWED.has(url.pathname) || url.search)) return;
   event.respondWith((async () => {
-    const cache = await caches.open(CACHE);
-    return await cache.match(navigation ? '/index.html' : url.pathname) || fetch(request);
+    try {
+      const cache = await caches.open(CACHE);
+      const cached = await cache.match(navigation ? '/index.html' : url.pathname);
+      if (cached) return cached;
+    } catch { /* Fall back to the network when browser storage is unavailable. */ }
+    return fetch(request);
   })());
 });
 `;

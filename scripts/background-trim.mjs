@@ -25,7 +25,11 @@ const files = await Promise.all(['logo.jpg', 'sello.jpg'].map(makeJpeg));
 await page.locator('input[type=file]').first().setInputFiles(files.map(({ name, data }) => ({ name, mimeType: 'image/jpeg', buffer: Buffer.from(data, 'base64') })));
 await page.locator('.image-card-select').nth(1).waitFor();
 
-const action = (name) => page.getByRole('button', { name, exact: true }).click();
+const action = async (name) => {
+  const button = page.getByRole('button', { name, exact: true });
+  if (!(await button.isVisible())) await page.getByRole('button', { name: 'Más acciones', exact: true }).click();
+  await button.click();
+};
 const sidebar = page.locator('.gallery-side-panel');
 const thumbInfo = (index) => page.locator('.image-thumb img').nth(index).evaluate(async (image) => {
   const blob = await (await fetch(image.dataset.sourceUrl || image.src)).blob();
@@ -89,7 +93,7 @@ await page.locator('.settings-panel .background-preview figcaption').filter({ ha
 await page.screenshot({ path: `${output}/trim-editor.png` });
 await page.locator('.settings-panel').getByRole('button', { name: 'Recortar', exact: true }).click();
 await page.waitForFunction(() => !document.querySelector('.settings-panel .background-panel'));
-await page.getByRole('button', { name: 'Guardar edición', exact: true }).click();
+await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click();
 await page.waitForFunction(() => !document.querySelector('.editor-shell'));
 const edited = await thumbInfo(0);
 assert.equal(edited.type, 'image/png');

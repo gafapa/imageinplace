@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDownToLine, BookOpen, Crop, Eraser, Gauge, History, Image as ImageIcon, Maximize2, PenLine, Redo2, ScanFace, ShieldCheck, SlidersHorizontal, Undo2, Upload } from 'lucide-react';
+import { ArrowDownToLine, BookOpen, Check, Crop, Eraser, Gauge, History, Image as ImageIcon, Maximize2, PenLine, ScanFace, ShieldCheck, SlidersHorizontal, Undo2, Upload } from 'lucide-react';
 import Editor from './features/Editor';
 import Gallery from './features/Gallery';
 import BrandMark from './features/BrandMark';
@@ -13,7 +13,7 @@ import { nameForType } from './features/imageEngine';
 import { IMAGE_ACCEPT, importType, undecodableMessage } from './features/imageImport';
 import { convertHeicToJpeg, isHeicType } from './features/heic';
 import { isTextEntry, shortcutFor } from './features/shortcuts';
-import { clearSession, loadSession, readRecoveryPreference, storeSession, writeRecoveryPreference } from './features/sessionStore';
+import { acquireRecoveryWriter, clearSession, loadSession, readRecoveryPreference, storeSession, writeRecoveryPreference } from './features/sessionStore';
 import { t, tn, intlLocale, currentLocale, loadLocale } from './i18n/index.js';
 
 const MAX_FILE_SIZE = MAX_FILE_BYTES;
@@ -38,9 +38,9 @@ function UploadZone({ onFiles, onPickFiles, compact = false }) {
       onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDragging(false); }}
       onDrop={(event) => { event.preventDefault(); event.stopPropagation(); setDragging(false); handleFiles(event.dataTransfer.files); }}
     >
-      <div className="upload-icon" aria-hidden="true"><Upload size={25} /></div>
+      <div className="upload-icon" aria-hidden="true"><Upload size={28} /></div>
       <div>
-        <p className="upload-title">{t('Arrastra y suelta imágenes aquí')}</p>
+        <p className="upload-title">{t('Arrastra tus imágenes aquí')}</p>
         <p className="upload-copy">{t('O pégalas desde el portapapeles')}</p>
       </div>
       <button className="primary-button" onClick={onPickFiles}>{t('Elegir imágenes')}</button>
@@ -52,12 +52,12 @@ function UploadZone({ onFiles, onPickFiles, compact = false }) {
 const homeTasks = () => [
   { id: 'compress', mode: 'batch', icon: Gauge, title: t('Reducir el peso'), copy: t('Para Moodle, el correo o la web') },
   { id: 'resize', mode: 'batch', icon: Maximize2, title: t('Cambiar el tamaño'), copy: t('Medidas exactas o porcentaje') },
-  { id: 'privacy', mode: 'editor', icon: ScanFace, title: t('Ocultar caras o nombres'), copy: t('Antes de compartir') },
-  { id: 'annotate', mode: 'editor', icon: PenLine, title: t('Señalar y explicar'), copy: t('Flechas, texto y números') },
-  { id: 'background', mode: 'batch', icon: Eraser, title: t('Quitar el fondo'), copy: t('Logos, dibujos y capturas') },
-  { id: 'print', mode: 'batch', icon: BookOpen, title: t('Hacer láminas A4'), copy: t('Varias imágenes en un PDF') },
   { id: 'crop', mode: 'editor', icon: Crop, title: t('Recortar'), copy: t('Diapositiva, cuadrado o A4') },
   { id: 'export', mode: 'batch', icon: ArrowDownToLine, title: t('Convertir formato'), copy: t('JPG, PNG o WebP') },
+  { id: 'privacy', mode: 'editor', icon: ScanFace, title: t('Ocultar caras o nombres'), copy: t('Antes de compartir'), ai: true },
+  { id: 'background', mode: 'batch', icon: Eraser, title: t('Quitar el fondo'), copy: t('Fotos, logos y dibujos'), ai: true },
+  { id: 'annotate', mode: 'editor', icon: PenLine, title: t('Señalar y explicar'), copy: t('Flechas, texto y números') },
+  { id: 'print', mode: 'batch', icon: BookOpen, title: t('Hacer láminas A4'), copy: t('Varias imágenes en un PDF') },
 ];
 
 function SessionBanner({ session, onRecover, onDiscard, busy }) {
@@ -70,33 +70,41 @@ function SessionBanner({ session, onRecover, onDiscard, busy }) {
   </div>;
 }
 
-function Home({ onFiles, onPickFiles, onTask, error, onUndo, canUndo, onRedo, canRedo, projectControls, session, onRecover, onDiscard, busy }) {
+function Home({ onFiles, onPickFiles, onTask, error, projectControls, session, onRecover, onDiscard, busy, canUndo, onUndo }) {
+  const points = [t('Sin cuentas ni subidas'), t('Funciona sin conexión'), t('IA en tu propio equipo')];
   return (
     <div className="home-shell">
       <header className="site-header">
         <BrandMark />
         <div className="home-actions">
+          {/* Only after closing every image, so that it can be undone from the home screen. */}
+          {canUndo && <button className="toolbar-button" onClick={onUndo} aria-label={t('Deshacer global')} title={t('Deshacer (Ctrl+Z)')}><Undo2 aria-hidden="true" /></button>}
+          <span className="privacy-label"><ShieldCheck size={16} aria-hidden="true" />{t('Nada sale de tu dispositivo')}</span>
           {projectControls}
-          <button className="toolbar-button" disabled={!canUndo} onClick={onUndo} aria-label={t('Deshacer global')} title={t('Deshacer (Ctrl+Z)')}><Undo2 /></button>
-          <button className="toolbar-button" disabled={!canRedo} onClick={onRedo} aria-label={t('Rehacer global')} title={t('Rehacer (Ctrl+Y)')}><Redo2 /></button>
-          <span className="privacy-label"><ShieldCheck size={17} aria-hidden="true" />{' '}{t('Procesado local')}</span>
-          <button className="toolbar-button" onClick={onPickFiles} title={t('Añadir imágenes (Ctrl+O)')}><Upload aria-hidden="true" />{' '}{t('Añadir imágenes')}</button>
         </div>
       </header>
       <main className="empty-workspace">
-        <SessionBanner session={session} onRecover={onRecover} onDiscard={onDiscard} busy={busy} />
-        <section className="workspace-dropzone" aria-labelledby="workspace-title">
-          <UploadZone onFiles={onFiles} onPickFiles={onPickFiles} />
-          <h1 id="workspace-title" className="sr-only">{t('Añadir imágenes')}</h1>
-          {error && <p className="error-message" role="alert">{error}</p>}
-        </section>
-        <section className="home-tasks" aria-labelledby="home-tasks-title">
-          <h2 id="home-tasks-title">{t('¿Qué quieres hacer?')}</h2>
-          <div className="home-task-grid">
-            {homeTasks().map(({ id, icon: Icon, title, copy }) => <button key={id} type="button" className="home-task" onClick={() => onTask(id)}><Icon aria-hidden="true" /><span><strong>{title}</strong><small>{copy}</small></span></button>)}
+        <div className="home-inner">
+          <SessionBanner session={session} onRecover={onRecover} onDiscard={onDiscard} busy={busy} />
+          <div className="home-hero">
+            <div className="home-intro">
+              <p className="home-eyebrow">{t('Para docentes y centros educativos')}</p>
+              <h1 id="workspace-title">{t('Prepara tus imágenes sin subirlas a ningún sitio.')}</h1>
+              <p className="home-lead">{t('Reduce, recorta, quita el fondo u oculta caras de varias imágenes a la vez. Todo ocurre en tu navegador.')}</p>
+              <ul className="home-points">{points.map((point) => <li key={point}><Check aria-hidden="true" />{point}</li>)}</ul>
+            </div>
+            <section className="workspace-dropzone" aria-label={t('Añadir imágenes')}>
+              <UploadZone onFiles={onFiles} onPickFiles={onPickFiles} />
+              {error && <p className="error-message" role="alert">{error}</p>}
+            </section>
           </div>
-          <p className="home-tasks-note"><ShieldCheck size={15} aria-hidden="true" />{' '}{t('Las imágenes se procesan en tu navegador y nunca se suben a ningún servidor.')}</p>
-        </section>
+          <section className="home-tasks" aria-labelledby="home-tasks-title">
+            <div className="home-tasks-heading"><h2 id="home-tasks-title">{t('¿Qué quieres hacer?')}</h2><p>{t('Elige una tarea y luego tus imágenes')}</p></div>
+            <div className="home-task-grid">
+              {homeTasks().map(({ id, icon: Icon, title, copy, ai }) => <button key={id} type="button" className="home-task" onClick={() => onTask(id)}><span className="home-task-icon"><Icon aria-hidden="true" /></span><span><strong>{title}{ai && <em className="ai-tag">{t('IA')}</em>}</strong><small>{copy}</small></span></button>)}
+            </div>
+          </section>
+        </div>
       </main>
     </div>
   );
@@ -177,6 +185,29 @@ export default function App() {
   const [storedSession, setStoredSession] = useState(null);
   const sessionSaved = useRef('');
   const sessionTouched = useRef(false);
+  const [recoveryWriter, setRecoveryWriter] = useState(false);
+  const recoveryRelease = useRef(null);
+  useEffect(() => {
+    if (!recoveryEnabled) return undefined;
+    let active = true;
+    acquireRecoveryWriter().then((release) => {
+      if (!active) { release?.(); return; }
+      recoveryRelease.current = release;
+      setRecoveryWriter(Boolean(release));
+      if (!release) setIoStatus(t('La recuperación está ocupada en otra pestaña o no está disponible. Guarda un proyecto para conservar estas imágenes.'));
+    }).catch(() => { if (active) setIoStatus(t('No se pudo activar la recuperación. Guarda un proyecto para conservar estas imágenes.')); });
+    return () => { active = false; recoveryRelease.current?.(); recoveryRelease.current = null; };
+  }, [recoveryEnabled]);
+  useEffect(() => {
+    const syncPreference = (event) => {
+      if (event.key !== null && event.key !== 'imageinplace-session-recovery') return;
+      setRecoveryEnabled(readRecoveryPreference());
+      sessionSaved.current = '';
+      if (!readRecoveryPreference()) { setRecoveryWriter(false); setStoredSession(null); }
+    };
+    window.addEventListener('storage', syncPreference);
+    return () => window.removeEventListener('storage', syncPreference);
+  }, []);
   useEffect(() => {
     if (!recoveryEnabled) return undefined;
     let active = true;
@@ -186,24 +217,37 @@ export default function App() {
   useEffect(() => {
     if (items.length) sessionTouched.current = true;
     // Until the user adds or recovers images, keep the previous session available for recovery.
-    if (!recoveryEnabled || !sessionTouched.current || workspaceSignature === sessionSaved.current) return undefined;
+    if (!recoveryEnabled || !recoveryWriter || !sessionTouched.current || workspaceSignature === sessionSaved.current) return undefined;
     const snapshot = items;
     const signature = workspaceSignature;
     let active = true;
     const timer = setTimeout(async () => {
       try {
-        if (!snapshot.length) await clearSession();
-        else await storeSession(await saveProject(snapshot), snapshot.length);
-        if (active) sessionSaved.current = signature;
+        const canWrite = () => active && !!recoveryRelease.current && readRecoveryPreference();
+        if (!snapshot.length) { if (canWrite()) await clearSession(canWrite); }
+        else {
+          const blob = await saveProject(snapshot);
+          if (!canWrite()) return;
+          await storeSession(blob, snapshot.length, canWrite);
+        }
+        if (canWrite()) sessionSaved.current = signature;
       } catch { if (active) setIoStatus(t('No se pudo recordar la sesión en este dispositivo (¿falta espacio?).')); }
     }, 1500);
     return () => { active = false; clearTimeout(timer); };
-  }, [items, recoveryEnabled, workspaceSignature]);
+  }, [items, recoveryEnabled, recoveryWriter, workspaceSignature]);
   const toggleRecovery = (enabled) => {
     writeRecoveryPreference(enabled);
+    if (enabled && !readRecoveryPreference()) {
+      setError(t('No se pudo activar la recuperación. Guarda un proyecto para conservar estas imágenes.'));
+      return;
+    }
     setRecoveryEnabled(enabled);
+    setRecoveryWriter(false);
     sessionSaved.current = '';
-    if (!enabled) { setStoredSession(null); clearSession(); }
+    if (!enabled) {
+      recoveryRelease.current?.(); recoveryRelease.current = null; setStoredSession(null);
+      clearSession().catch(() => setError(t('No se pudieron borrar las imágenes guardadas. Borra los datos de este sitio en el navegador antes de dejar el equipo.')));
+    }
   };
   const itemsRef = useRef(items);
   useEffect(() => { itemsRef.current = items; }, [items]);
@@ -301,9 +345,16 @@ export default function App() {
   // Re-rendering App re-renders every component, so t() picks up the new dictionary everywhere.
   const [locale, setLocale] = useState(currentLocale);
   const changeLocale = async (id) => { try { setLocale(await loadLocale(id, { remember: true })); } catch { setError(t('No se pudo cargar el idioma. Comprueba la conexión.')); } };
-  const projectControls = <><LanguageSelect value={locale} onChange={changeLocale} disabled={batchBusy || ioBusy} /><ProjectControls busy={batchBusy || ioBusy} hasItems={!!items.length} onOpen={handleOpenProject} onSave={handleSaveProject} recoveryEnabled={recoveryEnabled} onToggleRecovery={toggleRecovery} /></>;
+  const projectControls = <><LanguageSelect value={locale} onChange={changeLocale} disabled={batchBusy || ioBusy} /><ProjectControls busy={batchBusy || ioBusy} hasItems={!!items.length} onOpen={handleOpenProject} onSave={handleSaveProject} recoveryEnabled={recoveryEnabled} recoveryAvailable={recoveryWriter} onToggleRecovery={toggleRecovery} /></>;
   const recoverSession = () => { if (storedSession) handleOpenProject(storedSession.blob, { recovering: true }); };
-  const discardSession = () => { setStoredSession(null); clearSession(); };
+  const discardSession = () => {
+    if (!recoveryRelease.current) {
+      setError(t('La recuperación está ocupada en otra pestaña o no está disponible. Guarda un proyecto para conservar estas imágenes.'));
+      return;
+    }
+    setStoredSession(null);
+    clearSession(() => !!recoveryRelease.current).catch(() => setError(t('No se pudieron borrar las imágenes guardadas. Borra los datos de este sitio en el navegador antes de dejar el equipo.')));
+  };
 
   useEffect(() => {
     const handlePaste = (event) => {
@@ -413,10 +464,10 @@ export default function App() {
   };
 
   return <>
-    {!items.length && <Home {...{onFiles: addFiles, onPickFiles: pickFiles, onTask: startTask, session: storedSession, onRecover: recoverSession, onDiscard: discardSession, busy: ioBusy, error, onUndo, onRedo, canUndo, canRedo, projectControls}} />}
+    {!items.length && <Home {...{onFiles: addFiles, onPickFiles: pickFiles, onTask: startTask, session: storedSession, onRecover: recoverSession, onDiscard: discardSession, busy: ioBusy, error, projectControls, canUndo, onUndo}} />}
     {items.length > 0 && <Gallery {...{ notice: error, onDismissNotice: () => setError(''), items, selectedIds, setSelectedIds, onPickFiles: pickFiles, onBatchEdit: openBatchEditor, onEditItem: openItemEditor, onCompareItem: setComparisonId, onRemove: removeSelected, onClear: clearAll, batchAction, onBatchClose: () => setBatchAction(null), onBatchApply: applyBatchResults, batchBusy: batchBusy || ioBusy, onBatchBusy: setBatchBusy, onUndo, onRedo, canUndo, canRedo, onRestore: () => { setBatchAction(null); restoreOriginals(selectedIds); }, onRename, projectControls }} />}
     {comparisonId && items.some((item) => item.id === comparisonId) && <CompareDialog items={items} itemId={comparisonId} onNavigate={setComparisonId} onClose={() => setComparisonId(null)} />}
-    {items.length > 0 && workspaceMode === 'editor' && <Editor key={items[activeIndex].id} {...{ items, setItems, setSelectedIds, activeIndex, setActiveIndex, onAddFiles: addFiles, onBack: () => setWorkspaceMode('gallery'), onSave: applyBatchResults, initialTool: editorStartTool }} />}
+    {items.length > 0 && workspaceMode === 'editor' && <Editor key={items[activeIndex].id} {...{ items, activeIndex, setActiveIndex, onBack: () => setWorkspaceMode('gallery'), onSave: applyBatchResults, initialTool: editorStartTool }} />}
     <input ref={fileInputRef} className="sr-only" type="file" accept={IMAGE_ACCEPT} multiple tabIndex={-1} aria-hidden="true" onCancel={() => { pendingTask.current = null; }} onChange={(event) => { addFiles(Array.from(event.target.files || [])); event.target.value = ''; }} />
     {ioStatus && <div className="workspace-status" role="status" aria-live="polite">{ioStatus}</div>}
     {showWelcome && <WelcomeDialog onClose={() => setShowWelcome(false)} />}

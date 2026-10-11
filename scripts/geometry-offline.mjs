@@ -48,9 +48,9 @@ try {
   await tool('Rehacer');
   await page.waitForFunction(() => document.querySelector('.individual-editor canvas')?.width === 661);
   assert.equal((await fullInfo()).width, 600, 'Geometry must remain in the draft until Save');
-  await tool('Guardar edición'); await editor.waitFor({ state: 'detached' });
+  await tool('Guardar cambios'); await editor.waitFor({ state: 'detached' });
   assert.equal((await fullInfo()).width, 661);
-  await page.getByRole('button', { name: 'Restaurar originales seleccionados', exact: true }).click();
+  await page.getByRole('button', { name: 'Más acciones', exact: true }).click(); await page.getByRole('button', { name: 'Restaurar originales seleccionados', exact: true }).click();
   // A crop starts with exact 10% margins; changing a handle with the keyboard updates the output.
   await open(); await tool('Recortar'); await tool('Recorte visual: arrastrar el marco');
   const handle = editor.getByRole('button', { name: 'Esquina superior izquierda', exact: true });
@@ -60,14 +60,14 @@ try {
   await editor.getByLabel('Ancho (%)').fill('80');
   await page.screenshot({ path: '.impeccable/review/features/crop-desktop.png' });
   await tool('Aplicar recorte'); await page.waitForFunction(() => !document.querySelector('.geometry-controls'));
-  await tool('Guardar edición'); await editor.waitFor({ state: 'detached' });
+  await tool('Guardar cambios'); await editor.waitFor({ state: 'detached' });
   assert.deepEqual(await fullInfo(), { width: 480, height: 320, center: [208, 32, 48, 255], corner: [208, 32, 48, 255] });
-  await page.getByRole('button', { name: 'Restaurar originales seleccionados', exact: true }).click();
+  await page.getByRole('button', { name: 'Más acciones', exact: true }).click(); await page.getByRole('button', { name: 'Restaurar originales seleccionados', exact: true }).click();
   // Four-corner selection uses a worker and crops an axis-aligned quadrilateral exactly.
   await open(); await tool('Perspectiva');
   await page.waitForFunction(() => document.querySelector('.geometry-controls') || document.querySelector('.workspace-error'));
   const cornerSelect = editor.getByLabel('Esquina', { exact: true });
-  assert.equal(await editor.getByRole('button', { name: 'Guardar edición', exact: true }).isEnabled(), false, 'Pending geometry must be applied or cancelled before Save');
+  assert.equal(await editor.getByRole('button', { name: 'Guardar cambios', exact: true }).isEnabled(), false, 'Pending geometry must be applied or cancelled before Save');
   await editor.getByLabel('Horizontal (%)').fill('100'); await editor.getByLabel('Vertical (%)').fill('100');
   await editor.getByRole('alert').filter({ hasText: 'sin cruces' }).waitFor();
   assert.equal(await editor.getByRole('button', { name: 'Corregir perspectiva', exact: true }).isEnabled(), false);
@@ -80,13 +80,13 @@ try {
   await editor.getByRole('status').filter({ hasText: 'Resultado: 480 × 320 px' }).waitFor();
   await page.screenshot({ path: '.impeccable/review/features/perspective-desktop.png' });
   await tool('Corregir perspectiva'); await page.waitForFunction(() => !document.querySelector('.geometry-controls'));
-  await tool('Guardar edición'); await editor.waitFor({ state: 'detached' });
+  await tool('Guardar cambios'); await editor.waitFor({ state: 'detached' });
   assert.deepEqual(await fullInfo(), { width: 480, height: 320, center: [208, 32, 48, 255], corner: [208, 32, 48, 255] });
   // Cancelling the editor after applying a correction leaves the gallery source unchanged.
   const sourceBefore = await page.locator('.image-thumb img').first().getAttribute('data-source-url');
   await open(); await tool('Enderezar'); await editor.getByLabel('Ángulo exacto (°)').fill('-3');
   await tool('Aplicar enderezado'); await page.waitForFunction(() => !document.querySelector('.geometry-controls'));
-  await tool('Cancelar edición'); await editor.waitFor({ state: 'detached' });
+  await tool('Descartar'); await editor.waitFor({ state: 'detached' });
   assert.equal(await page.locator('.image-thumb img').first().getAttribute('data-source-url'), sourceBefore);
   // Actual pointer input moves the crop frame; touch and mobile keep controls inside the viewport.
   await page.setViewportSize({ width: 390, height: 844 });
@@ -98,7 +98,7 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.screenshot({ path: '.impeccable/review/features/crop-mobile.png' });
   assert.notEqual(await editor.getByRole('button', { name: 'Restablecer selección', exact: true }).evaluate((button) => getComputedStyle(button).fontSize), '0px');
-  await tool('Cancelar edición'); await editor.waitFor({ state: 'detached' });
+  await tool('Descartar'); await editor.waitFor({ state: 'detached' });
   const cacheEntries = await page.evaluate(async () => {
     const values = [];
     for (const key of await caches.keys()) if (key.startsWith('imageinplace-shell-')) for (const request of await (await caches.open(key)).keys()) values.push(request.url);
@@ -112,8 +112,8 @@ try {
   await page.locator('input[type=file]').first().setInputFiles([fixture, { ...fixture, name: 'second.png' }]); await page.locator('.image-card-edit').first().waitFor();
   await open(); await tool('Perspectiva'); await tool('Corregir perspectiva');
   await page.waitForFunction(() => !document.querySelector('.geometry-controls'));
-  await tool('Guardar edición'); await editor.waitFor({ state: 'detached' });
-  await page.getByRole('button', { name: 'Crear láminas A4', exact: true }).click();
+  await tool('Guardar cambios'); await editor.waitFor({ state: 'detached' });
+  await page.getByRole('button', { name: 'Más acciones', exact: true }).click(); await page.getByRole('button', { name: 'Crear láminas A4', exact: true }).click();
   const pdfDownload = page.waitForEvent('download'); await page.getByRole('button', { name: 'Descargar PDF', exact: true }).click();
   const pdfPath = await (await pdfDownload).path();
   assert.equal((await PDFDocument.load(await readFile(pdfPath))).getPageCount(), 1);

@@ -45,13 +45,13 @@ await page.getByRole('button', { name: 'Nueva zona centrada', exact: true }).cli
 await page.getByRole('button', { name: 'Tapar', exact: true }).click();
 const center = await page.locator('.editor-shell canvas').evaluate((canvas) => Array.from(canvas.getContext('2d').getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data));
 assert.deepEqual(center, [0, 0, 0, 255], 'Fill mode must paint the area solid');
-await page.getByRole('button', { name: 'Guardar edición', exact: true }).click();
+await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click();
 await page.waitForFunction(() => !document.querySelector('.editor-shell'));
 const editedType = await page.locator('.image-thumb img').first().evaluate(async (image) => (await (await fetch(image.dataset.sourceUrl || image.src)).blob()).type);
 assert.equal(editedType, 'image/jpeg', 'Editor save must keep JPEG');
 
 // Titled A4 PDF is generated with pdf-lib loaded on demand.
-await page.getByRole('button', { name: 'Crear láminas A4', exact: true }).click();
+await page.getByRole('button', { name: 'Más acciones', exact: true }).click(); await page.getByRole('button', { name: 'Crear láminas A4', exact: true }).click();
 await page.getByLabel('Título opcional', { exact: true }).fill('Unidad 3 — Ecosistemas');
 const download = page.waitForEvent('download');
 await page.getByRole('button', { name: /Descargar PDF/ }).click();

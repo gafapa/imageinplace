@@ -49,18 +49,19 @@ export const tools = [
   { id: 'visualcrop', group: 'frame', get short() { return t('Recorte visual'); }, get label() { return t('Recorte visual'); }, get description() { return t('Arrastra el marco de recorte'); }, icon: Crop, hidden: true },
 ];
 
+// The gallery toolbar shows the frequent tools in `section` order; `more` tools live in its "Más" menu.
 export const batchTools = [
-  { id: 'adjust', get short() { return t('Mejorar'); }, get label() { return t('Mejorar imágenes seleccionadas'); }, icon: SlidersHorizontal },
-  { id: 'resize', get short() { return t('Tamaño'); }, get label() { return t('Cambiar tamaño de imágenes seleccionadas'); }, icon: Maximize2 },
-  { id: 'rotate', get short() { return t('Girar'); }, get label() { return t('Girar imágenes seleccionadas'); }, icon: RotateCw },
-  { id: 'crop', get short() { return t('Recortar'); }, get label() { return t('Recortar imágenes seleccionadas'); }, icon: Crop },
-  { id: 'trim', get short() { return t('Sin bordes'); }, get label() { return t('Recortar al contenido'); }, icon: Shrink },
-  { id: 'background', get short() { return t('Sin fondo'); }, get label() { return t('Quitar fondo'); }, icon: Eraser },
-  { id: 'canvas', get short() { return t('Lienzo'); }, get label() { return t('Márgenes y lienzo'); }, icon: Frame },
-  { id: 'watermark', get short() { return t('Marca'); }, get label() { return t('Añadir marca a imágenes seleccionadas'); }, icon: Stamp },
-  { id: 'compress', get short() { return t('Comprimir'); }, get label() { return t('Comprimir a un peso objetivo'); }, icon: Gauge },
-  { id: 'rename', get short() { return t('Nombre'); }, get label() { return t('Renombrar selección'); }, icon: Tag },
-  { id: 'print', get short() { return t('Láminas A4'); }, get label() { return t('Crear láminas A4'); }, icon: BookOpen },
-  { id: 'workflow', get short() { return t('Flujos'); }, get label() { return t('Flujos reutilizables'); }, icon: Sparkles },
-  { id: 'export', get short() { return t('Descargar'); }, get label() { return t('Exportar imágenes seleccionadas'); }, icon: ArrowDownToLine },
+  { id: 'adjust', section: 'edit', get short() { return t('Mejorar'); }, get label() { return t('Mejorar imágenes seleccionadas'); }, icon: SlidersHorizontal },
+  { id: 'resize', section: 'edit', get short() { return t('Tamaño'); }, get label() { return t('Cambiar tamaño de imágenes seleccionadas'); }, icon: Maximize2 },
+  { id: 'crop', section: 'edit', get short() { return t('Recortar'); }, get label() { return t('Recortar imágenes seleccionadas'); }, icon: Crop },
+  { id: 'rotate', section: 'edit', get short() { return t('Girar'); }, get label() { return t('Girar imágenes seleccionadas'); }, icon: RotateCw },
+  { id: 'background', section: 'add', get short() { return t('Sin fondo'); }, get label() { return t('Quitar fondo'); }, icon: Eraser },
+  { id: 'watermark', section: 'add', get short() { return t('Marca'); }, get label() { return t('Añadir marca a imágenes seleccionadas'); }, icon: Stamp },
+  { id: 'compress', section: 'output', get short() { return t('Comprimir'); }, get label() { return t('Comprimir a un peso objetivo'); }, icon: Gauge },
+  { id: 'export', section: 'output', get short() { return t('Convertir'); }, get label() { return t('Exportar imágenes seleccionadas'); }, icon: ArrowDownToLine },
+  { id: 'trim', more: true, get short() { return t('Sin bordes'); }, get label() { return t('Recortar al contenido'); }, icon: Shrink },
+  { id: 'canvas', more: true, get short() { return t('Lienzo'); }, get label() { return t('Márgenes y lienzo'); }, icon: Frame },
+  { id: 'rename', more: true, get short() { return t('Nombre'); }, get label() { return t('Renombrar selección'); }, icon: Tag },
+  { id: 'print', more: true, get short() { return t('Láminas A4'); }, get label() { return t('Crear láminas A4'); }, icon: BookOpen },
+  { id: 'workflow', more: true, get short() { return t('Flujos'); }, get label() { return t('Flujos reutilizables'); }, icon: Sparkles },
 ];

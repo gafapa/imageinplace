@@ -18,7 +18,7 @@ try {
   const after = await canvas.evaluate((node) => node.toDataURL()); assert.notEqual(after, before, 'annotation changed no pixels'); report.annotationPixels = true;
   await page.getByRole('button', { name: 'Deshacer', exact: true }).click(); await page.waitForTimeout(100); await page.getByRole('button', { name: 'Deshacer', exact: true }).click(); await page.waitForTimeout(100); assert.equal(await canvas.evaluate((node) => node.toDataURL()), before, 'annotation undo failed');
   await page.getByRole('button', { name: 'Rehacer', exact: true }).click(); await page.waitForTimeout(100); await page.getByRole('button', { name: 'Rehacer', exact: true }).click(); await page.waitForTimeout(100); assert.equal(await canvas.evaluate((node) => node.toDataURL()), after, 'annotation redo failed'); report.annotationUndoRedo = true;
-  await page.getByRole('button', { name: 'Guardar edición' }).click();
+  await page.getByRole('button', { name: 'Guardar cambios' }).click();
   await page.locator('.individual-editor').waitFor({ state: 'detached' });
   await page.locator('.image-card-compare').click(); await page.waitForTimeout(500);
   const slider = page.locator('.before-after-slider input[type=range]'); assert.equal(await slider.count(), 1, 'comparison slider missing'); await slider.press('Home'); await slider.press('End'); report.compareKeyboard = true;

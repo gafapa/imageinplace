@@ -96,7 +96,7 @@ try {
     return Array.from(context.getImageData(0, 0, 1, 1).data);
   });
   assert.equal(restored[3], 0);
-  await page.getByRole('button', { name: 'Restaurar originales seleccionados', exact: true }).click();
+  await page.getByRole('button', { name: 'Más acciones', exact: true }).click(); await page.getByRole('button', { name: 'Restaurar originales seleccionados', exact: true }).click();
   const restoredBytes = await page.locator('.image-thumb img').nth(1).evaluate(async (image) => Array.from(new Uint8Array(await (await fetch(image.dataset.sourceUrl)).arrayBuffer())));
   assert.deepEqual(Buffer.from(restoredBytes), original);
   // Version-one projects still open, with an explicit warning that hashes are absent.

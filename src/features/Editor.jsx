@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, FileImage, Redo2, RotateCcw, Undo2, Upload, X } from 'lucide-react';
-import { initialSettings, clamp, loadImage, renderImage, saveFormatFor, settingsFor, SAVE_QUALITY } from './imageEngine';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Check, ChevronLeft, ChevronRight, Columns2, Redo2, RotateCcw, Undo2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { initialSettings, clamp, formatBytes, loadImage, renderImage, saveFormatFor, settingsFor, SAVE_QUALITY } from './imageEngine';
 import GeometryEditor from './GeometryEditor';
 import AnnotationsPanel from './AnnotationsPanel';
 import { renderAnnotations } from './annotations';
@@ -26,12 +26,14 @@ const GEOMETRY_TOOLS = ['deskew', 'visualcrop', 'perspective'];
 const PANEL_TOOLS = [...GEOMETRY_TOOLS, 'compress', 'rename', 'canvas', 'workflow', 'background', 'trim'];
 // Consecutive changes to the same control within this window collapse into one undo step.
 const HISTORY_GROUP_MS = 800;
+// Preview zoom steps; 'fit' shows the whole image in the stage.
+const ZOOM_STEPS = [0.25, 0.5, 1, 2, 4];
 // Panels that stage the current draft as a file (actionItems) and hand back a result.
 const ACTION_PANELS = { compress: CompressionPanel, canvas: CanvasPanel, background: BackgroundPanel, trim: TrimPanel, workflow: WorkflowPanel };
 
 const settingsChanged = (value) => Object.keys(initialSettings).filter((key) => key !== 'format' && key !== 'quality').some((key) => !Object.is(value[key], initialSettings[key]));
 
-export default function Editor({ items, setItems, setSelectedIds, activeIndex, setActiveIndex, onAddFiles, onBack, onSave, initialTool = 'adjust' }) {
+export default function Editor({ items, activeIndex, setActiveIndex, onBack, onSave, initialTool = 'adjust' }) {
   const item = items[activeIndex];
   const [draftItem, setDraftItem] = useState(null);
   const [draftBlob, setDraftBlob] = useState(null);
@@ -59,6 +61,8 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
   const [loadError, setLoadError] = useState('');
   const [previewDimensions, setPreviewDimensions] = useState({ width: 0, height: 0 });
   const [saving, setSaving] = useState(false);
+  const [zoom, setZoom] = useState('fit');
+  const [showOriginal, setShowOriginal] = useState(false);
   const dialogRef = useRef(null);
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -66,7 +70,6 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
     return () => { if (dialog.open) dialog.close(); };
   }, []);
   const canvasRef = useRef(null);
-  const addInputRef = useRef(null);
   const customSizeRef = useRef(false);
   const lastHistoryRef = useRef({ group: null, time: 0 });
 
@@ -341,6 +344,17 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
   // Automatic privacy suggestions: faces become pixelated zones, chosen text lines solid fills.
   const [detection, setDetection] = useState({ status: 'idle', message: '', lines: [] });
   const detectionAbortRef = useRef(null);
+  const detectionRevision = JSON.stringify([workingItem.url, settings, outputSize]);
+  const detectionRevisionRef = useRef(detectionRevision);
+  // Invalidate in a layout effect before input or worker callbacks can use the new draft.
+  useLayoutEffect(() => {
+    if (detectionRevisionRef.current === detectionRevision) return;
+    detectionRevisionRef.current = detectionRevision;
+    detectionAbortRef.current?.abort();
+    detectionAbortRef.current = null;
+    // React state mirrors invalidation of the external worker and its review results.
+    setDetection({ status: 'idle', message: '', lines: [] });
+  }, [detectionRevision]);
   useEffect(() => () => detectionAbortRef.current?.abort(), []);
   const detectionCanvas = () => {
     // Same geometry as the preview, without existing zones so already hidden content is still found.
@@ -353,7 +367,8 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
     const controller = new AbortController();
     detectionAbortRef.current = controller;
     setDetection({ status: 'running', message, lines: [] });
-    return controller.signal;
+    controller.revision = detectionRevisionRef.current;
+    return controller;
   };
   const detectionFailed = (cause) => setDetection({ status: 'idle', lines: [], message: cause?.name === 'AbortError' ? t('Detección cancelada.') : t('No se pudo completar la detección: {v0}.', { v0: cause?.message || 'error desconocido' }) });
   const addDetectedAreas = (boxes, mode) => {
@@ -366,25 +381,29 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
     ...detection,
     detectFaces: async () => {
       if (!source) return;
-      const signal = startDetection(t('Buscando caras… (la primera vez se descarga el modelo)'));
+      const request = startDetection(t('Buscando caras… (la primera vez se descarga el modelo)'));
+      const { signal } = request;
       try {
         const boxes = await detectFaces(detectionCanvas(), { signal });
+        if (signal.aborted || request !== detectionAbortRef.current || request.revision !== detectionRevisionRef.current) return;
         if (boxes.length) addDetectedAreas(boxes, 'pixelate');
         setDetection({ status: 'idle', lines: [], message: boxes.length ? tn(boxes.length, '{n} cara ocultada. Revisa la imagen: puede haber caras de perfil, pequeñas o tapadas que no se detecten.', '{n} caras ocultadas. Revisa la imagen: puede haber caras de perfil, pequeñas o tapadas que no se detecten.') : t('No se encontraron caras. Puedes dibujar las zonas a mano.') });
-      } catch (cause) { detectionFailed(cause); }
+      } catch (cause) { if (request === detectionAbortRef.current && !signal.aborted) detectionFailed(cause); }
     },
     detectText: async () => {
       if (!source) return;
-      const signal = startDetection(t('Leyendo el texto… (la primera vez se descargan los idiomas)'));
+      const request = startDetection(t('Leyendo el texto… (la primera vez se descargan los idiomas)'));
+      const { signal } = request;
       try {
         const lines = await recognizeLines(detectionCanvas(), { signal, locale: document.documentElement.lang || 'es',
-          onProgress: ({ status, progress }) => { if (status === 'recognizing text') setDetection((current) => (current.status === 'running' ? { ...current, message: t('Leyendo el texto… {v0}%', { v0: Math.round(progress * 100) }) } : current)); } });
+          onProgress: ({ status, progress }) => { if (request === detectionAbortRef.current && !signal.aborted && status === 'recognizing text') setDetection((current) => (current.status === 'running' ? { ...current, message: t('Leyendo el texto… {v0}%', { v0: Math.round(progress * 100) }) } : current)); } });
+        if (signal.aborted || request !== detectionAbortRef.current || request.revision !== detectionRevisionRef.current) return;
         setDetection(lines.length
           ? { status: 'review', message: '', lines: lines.map((line) => ({ ...line, checked: line.sensitive })) }
           : { status: 'idle', lines: [], message: t('No se encontró texto legible.') });
-      } catch (cause) { detectionFailed(cause); }
+      } catch (cause) { if (request === detectionAbortRef.current && !signal.aborted) detectionFailed(cause); }
     },
-    cancel: () => { detectionAbortRef.current?.abort(); setDetection({ status: 'idle', message: '', lines: [] }); },
+    cancel: () => { detectionAbortRef.current?.abort(); detectionAbortRef.current = null; setDetection({ status: 'idle', message: '', lines: [] }); },
     toggleLine: (index) => setDetection((current) => ({ ...current, lines: current.lines.map((line, lineIndex) => (lineIndex === index ? { ...line, checked: !line.checked } : line)) })),
     setAllLines: (checked) => setDetection((current) => ({ ...current, lines: current.lines.map((line) => ({ ...line, checked })) })),
     coverLines: () => {
@@ -413,17 +432,6 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
     if (selectedAnnotationId === id) setSelectedAnnotationId(null);
   };
 
-  const removeItem = (index) => {
-    const next = items.filter((_, itemIndex) => itemIndex !== index);
-    if (!next.length) { setItems([]); setSelectedIds([]); onBack(); return; }
-    setItems(next);
-    setSelectedIds((current) => {
-      const remainingSelection = current.filter((id) => id !== items[index].id);
-      return remainingSelection.length ? remainingSelection : [next[0].id];
-    });
-    setActiveIndex(Math.min(activeIndex, next.length - 1));
-  };
-
   const saveEdits = async (nextIndex) => {
     if (!source || saving || actionBusy) return;
     const leave = () => { if (typeof nextIndex === 'number') setActiveIndex(nextIndex); else onBack(); };
@@ -450,6 +458,13 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
       : ActionPanel
         ? <ActionPanel items={actionItems} allItems={items} onApply={applyIndividualResults} onClose={closePanel} onBusy={setActionBusy} />
         : <ToolPanel onVisualCrop={() => chooseTool('visualcrop')} {...{ activeTool, settings, setSetting, outputSize, setOutputSize: updateOutputSize, aspectLocked, setAspectLocked, source, privacyAreas, selectedArea, setSelectedArea, addPrivacyArea, updatePrivacyArea: updateSelectedPrivacyArea, deletePrivacyArea, estimatedSize, detection: detectionActions }} />;
+  const zoomBy = (direction) => setZoom((current) => {
+    if (current === 'fit') return direction > 0 ? 1 : 0.5;
+    return ZOOM_STEPS[ZOOM_STEPS.indexOf(current) + direction] ?? current;
+  });
+  const zoomed = zoom !== 'fit' && previewDimensions.width > 0;
+  const canvasStyle = zoomed ? { width: `${previewDimensions.width * zoom}px` } : undefined;
+  const formatName = (workingItem.type || '').split('/')[1]?.replace('jpeg', 'jpg').replace('svg+xml', 'svg').toUpperCase();
   const handleKeyDown = (event) => {
     if (event.defaultPrevented || isTextEntry(event.target)) return;
     const blocked = saving || actionBusy || !source;
@@ -479,15 +494,20 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
   return (
     <dialog ref={dialogRef} className="editor-shell individual-editor" aria-labelledby="individual-title" onCancel={(event) => { event.preventDefault(); if (!saving && !actionBusy) onBack(); }}>
       <header className="editor-header">
-        <h2 id="individual-title" title={workingItem.name}>{workingItem.name}</h2>
+        <div className="editor-title">
+          <h2 id="individual-title" title={workingItem.name}>{workingItem.name}</h2>
+          <small>{previewDimensions.width} × {previewDimensions.height} {t('px')}{formatName ? ` · ${formatName}` : ''} · {formatBytes(workingItem.size)}</small>
+        </div>
         <div className="header-action-group editor-navigation" role="group" aria-label={t('Navegación entre imágenes')}>
           <button className="icon-button" onClick={() => saveEdits(activeIndex - 1)} disabled={activeIndex === 0 || saving || actionBusy || geometryActive || !source} aria-label={t('Imagen anterior')} title={t('Guardar y pasar a la imagen anterior (RePág)')}><ChevronLeft /></button>
-          <span>{activeIndex + 1}/{items.length}</span>
+          <span>{t('{current} de {total}', { current: activeIndex + 1, total: items.length })}</span>
           <button className="icon-button" onClick={() => saveEdits(activeIndex + 1)} disabled={activeIndex === items.length - 1 || saving || actionBusy || geometryActive || !source} aria-label={t('Imagen siguiente')} title={t('Guardar y pasar a la imagen siguiente (AvPág)')}><ChevronRight /></button>
         </div>
-        <div className="header-action-group editor-completion">
-          <button className="icon-button" onClick={onBack} disabled={saving || actionBusy} aria-label={t('Cancelar edición')} title={t('Cancelar edición (Esc)')}><X /></button>
-          <button className="primary-button save-image-button" onClick={() => saveEdits()} disabled={saving || actionBusy || geometryActive || !source} aria-label={t('Guardar edición')} title={geometryActive ? t('Aplica o cancela el ajuste antes de guardar') : t('Guardar edición (Ctrl+S)')}><Check /></button>
+        <div className="editor-completion">
+          <button className="icon-button ghost-button" onClick={undo} disabled={!history.length || saving || actionBusy} aria-label={t('Deshacer')} title={t('Deshacer (Ctrl+Z)')}><Undo2 aria-hidden="true" /></button>
+          <button className="icon-button ghost-button" onClick={redo} disabled={!future.length || saving || actionBusy} aria-label={t('Rehacer')} title={t('Rehacer (Ctrl+Y)')}><Redo2 aria-hidden="true" /></button>
+          <button className="toolbar-button" onClick={onBack} disabled={saving || actionBusy} title={t('Cancelar edición (Esc)')}><X aria-hidden="true" /><span className="button-label">{t('Descartar')}</span></button>
+          <button className="primary-button save-image-button" onClick={() => saveEdits()} disabled={saving || actionBusy || geometryActive || !source} title={geometryActive ? t('Aplica o cancela el ajuste antes de guardar') : t('Guardar edición (Ctrl+S)')}><Check aria-hidden="true" /><span className="button-label">{t('Guardar cambios')}</span></button>
         </div>
       </header>
 
@@ -501,36 +521,24 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
               return <button key={tool.id} title={`${tool.label}: ${tool.description}`} aria-label={tool.label} className={active ? 'active' : ''} disabled={actionBusy || saving || !source} onClick={() => chooseTool(tool.id)} aria-current={active ? 'page' : undefined}><Icon aria-hidden="true" /><span aria-hidden="true">{tool.short}</span></button>;
             })}
           </div>)}
-          <div className="tool-rail-group" role="group" aria-label={t('Historial')}>
-            <button onClick={undo} disabled={!history.length || saving || actionBusy} aria-label={t('Deshacer')} title={t('Deshacer (Ctrl+Z)')}><Undo2 aria-hidden="true" /><span aria-hidden="true">{t('Deshacer')}</span></button>
-            <button onClick={redo} disabled={!future.length || saving || actionBusy} aria-label={t('Rehacer')} title={t('Rehacer (Ctrl+Y)')}><Redo2 aria-hidden="true" /><span aria-hidden="true">{t('Rehacer')}</span></button>
-          </div>
         </nav>
 
         {geometryActive ? <GeometryEditor key={activeTool} item={actionItems[0]} tool={activeTool} onApply={applyIndividualResults} onClose={() => { setActionItems([]); setActiveTool('adjust'); }} onBusy={setActionBusy} /> : <>
         <section className="canvas-workspace" aria-label={t('Vista previa de la imagen')}>
-          <div className="workspace-meta">
-            <span><FileImage size={16} /> {workingItem.name}</span>
-            <span>{previewDimensions.width} × {previewDimensions.height}{' '}{t('px')}</span>
-          </div>
-          <div className="process-trail" aria-label={t('Estado del proceso')}>
-            <span><small>{t('Origen')}</small><strong>{t('Imagen abierta')}</strong></span>
-            <i aria-hidden="true">→</i>
-            <span><small>{t('Transformación')}</small><strong>{tools.find((tool) => tool.id === activeTool)?.label}</strong></span>
-            <i aria-hidden="true">→</i>
-            <span className={`status-${exportStatus}`}><small>{t('Resultado')}</small><strong>{exportStatus === 'loading' ? t('Abriendo…') : exportStatus === 'processing' ? t('Procesando…') : exportStatus === 'success' ? t('Descargado') : exportStatus === 'error' ? t('Revisar error') : t('Listo para descargar')}</strong></span>
-          </div>
-          <div className={`canvas-stage ${activeTool === 'privacy' ? 'privacy-active' : ''}`}>
+          <div className={`canvas-stage ${activeTool === 'privacy' ? 'privacy-active' : ''} ${zoomed ? 'is-zoomed' : ''}`}>
             <div className="canvas-wrap" onPointerDown={beginPrivacyArea} onPointerMove={updatePrivacyArea} onPointerUp={finishPrivacyArea}>
-              <canvas ref={canvasRef} tabIndex={activeTool === 'privacy' ? 0 : -1} aria-label={activeTool === 'privacy' ? t('Imagen editable. Usa el panel Ocultar para crear y ajustar zonas con el teclado.') : t('Imagen editable')} />
+              <canvas ref={canvasRef} style={canvasStyle} tabIndex={activeTool === 'privacy' ? 0 : -1} aria-label={activeTool === 'privacy' ? t('Imagen editable. Usa el panel Ocultar para crear y ajustar zonas con el teclado.') : t('Imagen editable')} />
               {drawingStyle && <span className="drawing-area" style={drawingStyle} />}
+              {showOriginal && <img className="canvas-original" src={item.url} alt={t('Imagen antes de los cambios')} />}
             </div>
           </div>
           {loadError && <p className="workspace-error" role="alert">{loadError}</p>}
-          <div className="file-strip" aria-label={t('Imágenes abiertas')}>
-            {items.map((file, index) => <div key={file.id} className={index === activeIndex ? 'active' : ''}><button onClick={() => { if (index !== activeIndex) saveEdits(index); }} disabled={saving || actionBusy || !source} title={index === activeIndex ? file.name : t('Guardar y abrir {name}', { name: file.name })}><img src={file.thumbnailUrl || file.url} alt="" /><span>{file.name}</span></button><button className="remove-file" onClick={() => removeItem(index)} aria-label={t('Cerrar {name}', { name: file.name })}><X /></button></div>)}
-            <input ref={addInputRef} className="sr-only" type="file" accept="image/*,.heic,.heif,.tif,.tiff" multiple onChange={(event) => onAddFiles(Array.from(event.target.files || []))} />
-            <button className="add-file" onClick={() => addInputRef.current?.click()}><Upload size={18} />{' '}{t('Añadir')}</button>
+          <div className="canvas-bar" role="group" aria-label={t('Vista')}>
+            <button type="button" onClick={() => zoomBy(-1)} disabled={!source || zoom === ZOOM_STEPS[0]} aria-label={t('Alejar')} title={t('Alejar')}><ZoomOut aria-hidden="true" /></button>
+            <button type="button" className="canvas-bar-zoom" onClick={() => setZoom('fit')} disabled={!source} title={t('Ajustar a la ventana')}>{zoom === 'fit' ? t('Ajustar') : `${Math.round(zoom * 100)} %`}</button>
+            <button type="button" onClick={() => zoomBy(1)} disabled={!source || zoom === ZOOM_STEPS[ZOOM_STEPS.length - 1]} aria-label={t('Acercar')} title={t('Acercar')}><ZoomIn aria-hidden="true" /></button>
+            <span className="canvas-bar-divider" aria-hidden="true" />
+            <button type="button" className="canvas-bar-compare" aria-pressed={showOriginal} onClick={() => setShowOriginal((value) => !value)} disabled={!source}><Columns2 aria-hidden="true" /><span className="canvas-bar-label">{t('Antes / después')}</span></button>
           </div>
         </section>
 
@@ -539,8 +547,11 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
             {settingsPanel}
           </div>
           {activeTool === 'export' && <button className="primary-button" onClick={exportImage} disabled={!source || saving}>{t('Descargar')}</button>}
-          <button className="reset-button" disabled={!source || actionBusy || saving} onClick={() => { recordHistory(); setSettings((current) => ({ ...initialSettings, format: current.format, quality: current.quality })); customSizeRef.current = false; setOutputSize({ width: source.naturalWidth, height: source.naturalHeight }); setPrivacyAreas([]); setAnnotations([]); setSelectedAnnotationId(null); setSelectedArea(0); }}><RotateCcw size={16} />{' '}{t('Restablecer ajustes')}</button>
-          {item.originalUrl && <button className="reset-button" disabled={!source || actionBusy || saving} onClick={restoreDraftOriginal}><RotateCcw size={16} />{' '}{t('Restaurar original')}</button>}
+          <div className="settings-footer">
+            <button className="reset-button" disabled={!source || actionBusy || saving} onClick={() => { recordHistory(); setSettings((current) => ({ ...initialSettings, format: current.format, quality: current.quality })); customSizeRef.current = false; setOutputSize({ width: source.naturalWidth, height: source.naturalHeight }); setPrivacyAreas([]); setAnnotations([]); setSelectedAnnotationId(null); setSelectedArea(0); }} title={t('Quita los ajustes, zonas y anotaciones de esta edición')}><RotateCcw aria-hidden="true" />{t('Restablecer')}</button>
+            {history.length > 0 && <span className="settings-footer-note">{tn(history.length, '{n} cambio sin guardar', '{n} cambios sin guardar')}</span>}
+            {item.originalUrl && item.url !== item.originalUrl && <button className="link-button" disabled={!source || actionBusy || saving} onClick={restoreDraftOriginal}>{t('Volver al original')}</button>}
+          </div>
         </aside>
         </>}
       </main>

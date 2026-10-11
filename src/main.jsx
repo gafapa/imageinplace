@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import '@fontsource-variable/atkinson-hyperlegible-next/wght.css';
 import './styles.css';
 import { detectLocale, loadLocale } from './i18n/index.js';
 

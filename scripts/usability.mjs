@@ -78,7 +78,7 @@ for (const [index, sample] of webkitPixels.entries()) {
   assert.equal(await cards.count(), 2);
   // Typing in a field never triggers shortcuts.
   await page.keyboard.press('Control+a');
-  await page.getByRole('button', { name: 'Renombrar selección', exact: true }).click();
+  await page.getByRole('button', { name: 'Más acciones', exact: true }).click(); await page.getByRole('button', { name: 'Renombrar selección', exact: true }).click();
   const field = page.locator('.gallery-side-panel .text-field input').first();
   await field.focus();
   await page.keyboard.press('Control+a');
@@ -200,4 +200,31 @@ for (const [index, sample] of webkitPixels.entries()) {
   assert.deepEqual(errors, []);
 }
 
-console.log('Usability checks passed: WebKit colour fallback matches Chromium, keyboard shortcuts, number fields, source-format export, home tasks, session recovery, mobile fit, language switching.');
+// 7. Editor view bar: zoom steps scroll instead of clipping, and "Antes / después" shows the image before this edit.
+{
+  const { browser, page, errors } = await setup(chromium, { viewport: { width: 1280, height: 800 } });
+  await page.locator('input[type=file]').setInputFiles(await gradientPng(page, 640, 420));
+  await page.locator('.image-card-edit').first().click();
+  const editor = page.locator('.individual-editor');
+  const canvasWidth = () => editor.locator('.canvas-wrap canvas').evaluate((canvas) => Math.round(canvas.getBoundingClientRect().width));
+  await editor.getByRole('button', { name: 'Acercar', exact: true }).click();
+  assert.equal(await editor.locator('.canvas-bar-zoom').textContent(), '100 %');
+  assert.equal(await canvasWidth(), 640);
+  await editor.getByRole('button', { name: 'Acercar', exact: true }).click();
+  assert.equal(await canvasWidth(), 1280);
+  assert.ok(await editor.locator('.canvas-stage').evaluate((stage) => stage.scrollWidth > stage.clientWidth), 'A zoomed image scrolls');
+  await editor.locator('.canvas-bar-zoom').click();
+  assert.equal(await editor.locator('.canvas-bar-zoom').textContent(), 'Ajustar');
+  await editor.locator('.range-control input').first().fill('150');
+  await editor.getByText('1 cambio sin guardar').waitFor();
+  const compare = editor.getByRole('button', { name: 'Antes / después', exact: true });
+  await compare.click();
+  await editor.getByRole('img', { name: 'Imagen antes de los cambios' }).waitFor();
+  assert.equal(await compare.getAttribute('aria-pressed'), 'true');
+  await compare.click();
+  assert.equal(await editor.locator('.canvas-original').count(), 0);
+  await browser.close();
+  assert.deepEqual(errors, []);
+}
+
+console.log('Usability checks passed: WebKit colour fallback matches Chromium, keyboard shortcuts, number fields, source-format export, home tasks, session recovery, mobile fit, language switching, editor zoom and before/after.');

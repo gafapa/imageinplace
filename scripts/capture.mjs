@@ -90,7 +90,7 @@ await page.waitForFunction(() => { const canvas = document.querySelector('.canva
 await page.getByRole('button', { name: 'Imagen siguiente', exact: true }).click();
 await page.waitForFunction(() => document.querySelector('#individual-title')?.textContent === 'second-classroom-image.png');
 await page.screenshot({ path: `${outputDirectory}/editor-desktop.png`, fullPage: true });
-await page.getByRole('button', { name: 'Cancelar edición', exact: true }).click();
+await page.getByRole('button', { name: 'Descartar', exact: true }).click();
 if (await page.locator('.image-card-select[aria-pressed="true"]').count() !== 2) throw new Error('Individual editor changed gallery selection');
 
 await page.setViewportSize({ width: 390, height: 844 });
@@ -129,7 +129,7 @@ await page.getByText('1 zona oculta').waitFor();
 await page.screenshot({ path: `${outputDirectory}/editor-mobile.png`, fullPage: true });
 
 const previousUrl = await page.locator('.image-thumb img').getAttribute('src');
-await page.getByRole('button', { name: 'Guardar edición', exact: true }).click();
+await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click();
 await page.locator('.individual-editor').waitFor({ state: 'detached' });
 if (await page.locator('.image-thumb img').getAttribute('src') === previousUrl) throw new Error('Save did not update gallery image');
 
