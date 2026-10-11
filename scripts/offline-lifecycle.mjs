@@ -28,7 +28,7 @@ const origin = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch();
 try {
   const context = await browser.newContext();
-  await context.addInitScript(() => localStorage.setItem('imageinplace-welcome-dismissed', 'true'));
+  await context.addInitScript(() => { localStorage.setItem('imageinplace-welcome-dismissed', 'true'); localStorage.setItem('imageinplace-locale', 'es'); });
   const page = await context.newPage(); await page.goto(origin);
   await page.waitForFunction(() => !!navigator.serviceWorker.controller);
   await page.evaluate(() => caches.open('unrelated-cache'));

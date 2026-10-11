@@ -10,7 +10,7 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const errors = [];
 page.on('pageerror', (error) => errors.push(error.message));
-await page.addInitScript(() => localStorage.setItem('imageinplace-welcome-dismissed', 'true'));
+await page.addInitScript(() => { localStorage.setItem('imageinplace-welcome-dismissed', 'true'); localStorage.setItem('imageinplace-locale', 'es'); });
 await page.goto(process.env.TEST_URL || 'http://127.0.0.1:4180');
 const fixture = (name, width, height) => ({ name, mimeType: 'image/svg+xml', buffer: Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="#008800"/></svg>`) });
 await page.locator('input[type=file]').setInputFiles([fixture('clase.svg', 600, 400), fixture('vertical.svg', 400, 600)]);

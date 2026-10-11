@@ -10,7 +10,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const problems = [];
 page.on('pageerror', (error) => problems.push(`pageerror: ${error.message}`));
 page.on('console', (message) => { if (message.type() === 'error') problems.push(`console: ${message.text()}`); });
-await page.addInitScript(() => localStorage.setItem('imageinplace-welcome-dismissed', 'true'));
+await page.addInitScript(() => { localStorage.setItem('imageinplace-welcome-dismissed', 'true'); localStorage.setItem('imageinplace-locale', 'es'); });
 await page.goto(process.env.TEST_URL || 'http://127.0.0.1:4180');
 
 // A JPEG logo: a red disc on white with 100 px margins left/right and 60 px top/bottom.
@@ -59,6 +59,9 @@ assert.equal(trimmed.type, 'image/png');
 
 // Exporting a transparent image as JPEG paints the background white, not black.
 await page.getByRole('button', { name: 'Exportar imágenes seleccionadas', exact: true }).click();
+// Transparent PNGs default to PNG export; choose JPEG explicitly.
+assert.equal(await sidebar.locator('input[name="format"]:checked').inputValue(), 'image/png', 'PNG images must default to PNG export');
+await sidebar.locator('input[name="format"][value="image/jpeg"]').check();
 const download = page.waitForEvent('download');
 await sidebar.getByRole('button', { name: 'Descargar', exact: true }).click();
 const zipPath = await (await download).path();

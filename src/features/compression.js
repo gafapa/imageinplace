@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 const MAX_CANVAS_SIDE = 10000;
 const MAX_CANVAS_PIXELS = 40_000_000;
 
@@ -20,7 +21,7 @@ function loadSource(source) {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => { if (ownsUrl) URL.revokeObjectURL(url); resolve(image); };
-    image.onerror = () => { if (ownsUrl) URL.revokeObjectURL(url); reject(new Error('No se pudo leer la imagen.')); };
+    image.onerror = () => { if (ownsUrl) URL.revokeObjectURL(url); reject(new Error(t('No se pudo leer la imagen.'))); };
     image.src = url;
   });
 }
@@ -34,11 +35,11 @@ function dimensionsOf(source) {
 
 /** Encode an image locally, finding the highest quality that meets targetBytes. */
 export async function compressToTarget(sourceOrCanvas, options = {}) {
-  if (typeof document === 'undefined') throw new Error('La compresión necesita un navegador.');
+  if (typeof document === 'undefined') throw new Error(t('La compresión necesita un navegador.'));
   const signal = options.signal;
   signal?.throwIfAborted();
   const targetBytes = Number(options.targetBytes);
-  if (!Number.isFinite(targetBytes) || targetBytes <= 0) throw new Error('El tamaño objetivo no es válido.');
+  if (!Number.isFinite(targetBytes) || targetBytes <= 0) throw new Error(t('El tamaño objetivo no es válido.'));
   const format = options.format === 'image/webp' ? 'image/webp' : 'image/jpeg';
   const minQuality = clamp(Number(options.minQuality ?? 0.35), 0.05, 0.99);
   const maxQuality = clamp(Number(options.maxQuality ?? 0.9), minQuality, 1);
@@ -46,9 +47,9 @@ export async function compressToTarget(sourceOrCanvas, options = {}) {
   const minDimension = Math.max(1, Math.floor(Number(options.minDimension ?? 320)));
   const source = await loadSource(sourceOrCanvas);
   const original = dimensionsOf(source);
-  if (!original.width || !original.height) throw new Error('No se pudieron leer las dimensiones.');
+  if (!original.width || !original.height) throw new Error(t('No se pudieron leer las dimensiones.'));
   if (original.width > MAX_CANVAS_SIDE || original.height > MAX_CANVAS_SIDE || original.width * original.height > MAX_CANVAS_PIXELS) {
-    if (!allowResize) throw new Error('La imagen supera el límite de memoria del navegador.');
+    if (!allowResize) throw new Error(t('La imagen supera el límite de memoria del navegador.'));
   }
 
   const canvas = document.createElement('canvas');
@@ -64,7 +65,7 @@ export async function compressToTarget(sourceOrCanvas, options = {}) {
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext('2d', { alpha: format !== 'image/jpeg' });
-    if (!context) throw new Error('El navegador no ofrece un lienzo 2D.');
+    if (!context) throw new Error(t('El navegador no ofrece un lienzo 2D.'));
     context.clearRect(0, 0, width, height);
     if (format === 'image/jpeg') { context.fillStyle = '#ffffff'; context.fillRect(0, 0, width, height); }
     context.drawImage(source, 0, 0, width, height);
@@ -91,7 +92,7 @@ export async function compressToTarget(sourceOrCanvas, options = {}) {
     }
     scale = Math.max(minDimension / Math.min(original.width, original.height), scale * 0.82);
   }
-  if (!best) throw new Error('No se pudo generar un resultado dentro de los límites.');
+  if (!best) throw new Error(t('No se pudo generar un resultado dentro de los límites.'));
   signal?.throwIfAborted();
   return best;
 }

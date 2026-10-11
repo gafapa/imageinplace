@@ -8,7 +8,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 page.setDefaultTimeout(10000);
 const errors = [];
 page.on('pageerror', (error) => errors.push(error.message));
-await page.addInitScript(() => localStorage.setItem('imageinplace-welcome-dismissed', 'true'));
+await page.addInitScript(() => { localStorage.setItem('imageinplace-welcome-dismissed', 'true'); localStorage.setItem('imageinplace-locale', 'es'); });
 const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><rect width="320" height="180" fill="#1479dd"/></svg>';
 const editor = page.locator('.individual-editor');
 const tool = (name) => editor.getByRole('button', { name, exact: true }).click();

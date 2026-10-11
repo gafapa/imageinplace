@@ -1,4 +1,5 @@
 import { validateDimensions } from './imageLimits.js';
+import { applyColorSteps, blurImageData, canvasFilterSupported, colorSteps } from './colorFilters.js';
 
 export const initialSettings = {
   brightness: 100,
@@ -33,6 +34,18 @@ export function saveFormatFor(type) {
 }
 
 export const SAVE_QUALITY = 0.92;
+
+/** Default settings whose export format matches the image, so PNG transparency and sharp text survive a download. */
+export function settingsFor(type) {
+  return { ...initialSettings, format: saveFormatFor(type) };
+}
+
+/** Shared export format for several images: their common format, otherwise PNG when any needs it. */
+export function batchFormatFor(types) {
+  const formats = new Set(types.map(saveFormatFor));
+  if (formats.size === 1) return [...formats][0];
+  return formats.has('image/png') ? 'image/png' : 'image/jpeg';
+}
 
 /** Replace a filename's extension so it matches the blob's MIME type. */
 export function nameForType(name, type) {
@@ -97,9 +110,19 @@ export function renderImage(source, canvas, settings, outputSize, privacyAreas) 
   context.translate(canvas.width / 2, canvas.height / 2);
   context.rotate((settings.rotation * Math.PI) / 180);
   context.scale(settings.flipX ? -1 : 1, 1);
-  context.filter = `brightness(${settings.brightness}%) contrast(${settings.contrast}%) saturate(${settings.saturation}%) grayscale(${settings.grayscale}%) sepia(${settings.sepia}%) blur(${settings.blur}px)`;
+  const nativeFilter = canvasFilterSupported();
+  if (nativeFilter) context.filter = `brightness(${settings.brightness}%) contrast(${settings.contrast}%) saturate(${settings.saturation}%) grayscale(${settings.grayscale}%) sepia(${settings.sepia}%) blur(${settings.blur}px)`;
   context.drawImage(source, crop.sx, crop.sy, crop.sw, crop.sh, -baseWidth / 2, -baseHeight / 2, baseWidth, baseHeight);
   context.restore();
+  if (!nativeFilter) {
+    const steps = colorSteps(settings);
+    if (steps.length || settings.blur > 0) {
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+      applyColorSteps(pixels.data, steps);
+      blurImageData(pixels, settings.blur);
+      context.putImageData(pixels, 0, 0);
+    }
+  }
 
   if (privacyAreas.length) {
     const snapshot = document.createElement('canvas');

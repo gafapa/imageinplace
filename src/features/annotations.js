@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 /** Draw normalized annotations on an already rendered image canvas. */
@@ -35,4 +36,4 @@ export function renderAnnotations(context, annotations = [], width, height) {
   });
 }
 
-export const annotationDefaults = (type, index = 0) => ({ id: crypto.randomUUID(), type, x: 0.25, y: 0.25, width: type === 'text' || type === 'marker' ? 0 : 0.3, height: type === 'text' || type === 'marker' ? 0 : 0.2, color: '#e23b32', text: type === 'marker' ? String(index + 1) : 'Texto', fontSize: 32, strokeWidth: 5 });
+export const annotationDefaults = (type, index = 0) => ({ id: crypto.randomUUID(), type, x: 0.25, y: 0.25, width: type === 'text' || type === 'marker' ? 0 : 0.3, height: type === 'text' || type === 'marker' ? 0 : 0.2, color: '#e23b32', text: type === 'marker' ? String(index + 1) : t('Texto'), fontSize: 32, strokeWidth: 5 });

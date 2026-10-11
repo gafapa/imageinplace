@@ -4,7 +4,7 @@ Image in Place is a privacy-first image toolbox designed for teachers and useful
 
 ## Current tools
 
-- Brightness, contrast, saturation, grayscale, sepia, and blur adjustments
+- Brightness, contrast, saturation, grayscale, sepia, and blur adjustments; browsers whose canvas ignores `context.filter` (Safari/WebKit) get an equivalent pixel implementation, detected at runtime
 - Exact resize with optional aspect-ratio locking and useful presets
 - Crop controls and presets for slides, square images, and A4 worksheets
 - Background removal: makes a uniform background that touches the edges transparent (logos, scanned drawings, screenshots, product photos), with tolerance, soft de-haloed edges, optional removal of enclosed areas, and PNG output; works individually or in batches
@@ -28,6 +28,15 @@ Image in Place is a privacy-first image toolbox designed for teachers and useful
 - Privacy masking belongs to the individual editor opened from each image's pencil button
 - Batch processing with shared settings and client-side ZIP download
 - Multiple open images, clipboard paste, full-workspace drag and drop, undo, and redo
+- Home screen tasks in plain language (reduce weight, resize, hide faces, annotate, remove background, A4 sheets, crop, convert) that open the matching tool right after choosing images
+- Labelled, grouped tool rail in the editor (Adjust / Frame / Protect and add / Save) and labelled batch action dock
+- Keyboard shortcuts: Ctrl/Cmd+Z undo, Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z redo, Ctrl/Cmd+A select all, Delete removes the selection, Esc closes the action panel or clears the selection, Ctrl/Cmd+O adds images, Ctrl/Cmd+S saves the project (gallery) or the edit (editor), PageUp/PageDown move between images in the editor; shortcuts never fire while typing in a field
+- Export proposes the image's own format (PNG stays PNG, keeping transparency and sharp text)
+- iPhone HEIC/HEIF photos open in every browser: Safari decodes them natively, other browsers use libheif (WebAssembly) in a worker; they are converted to JPEG on import. TIFF opens where the browser supports it (Safari)
+- On-device AI background removal (U²-Netp, 4.6 MB) for photos with busy backgrounds; the panel suggests it when the image borders are not a uniform colour, and the exact uniform-colour method otherwise
+- Privacy helpers in the editor: **Detect faces** (UltraFace RFB-640) adds pixelated zones; **Detect text** (Tesseract OCR) lists the recognised lines, preselects those that look like personal data (ID numbers, e-mail, phone, dates, labelled fields) and covers the chosen ones with solid fills
+- Interface in Spanish, Galician, Catalan, Basque and English: detected from the browser, changeable from the header and remembered; all dictionaries are checked for completeness and placeholders by the unit tests
+- Optional session recovery (Project menu, off by default)
 - Validated imports with per-image and workspace memory limits, corrupt-file reports, GIF flattening notice, and lightweight gallery thumbnails
 - Local `.iip` project files with SHA-256 integrity checks containing current images, original files, filenames, and modification times; opening adds the project to the gallery atomically
 - Offline app-shell caching of all production assets, including lazy PDF/ZIP/EXIF chunks and workers, with readiness shown in the Project menu
@@ -77,7 +86,7 @@ Security response headers (CSP with `frame-ancestors`, HSTS, `nosniff`, Referrer
 
 ## Privacy
 
-All file decoding, editing, previewing, and export happen locally in the user's browser. Image URLs remain available while referenced by the bounded undo history and are released when no retained state needs them or the app unmounts. Images and edit history are not automatically persisted across a page reload. Use **Project → Save project** to download a local `.iip` file and **Open project** to add its images back to the gallery. Project files include original bytes and metadata, including any original GPS data; treat them like the original images. They do not contain the undo history, unsaved editor drafts, or browser workflow preferences. The browser cannot confirm that a prepared download was actually saved to disk. The offline cache contains only application assets; it never stores image blobs, project files, or editing state. Only named workflow configurations and the welcome preference use localStorage; the app keeps working when storage is blocked. Production builds ship a Content-Security-Policy that only allows connections to the app's own origin, so the browser itself enforces that images are not sent anywhere. Edited JPEG/WebP images are saved in their original format; image and PDF exports are re-encoded through a canvas, so EXIF data such as GPS location is not included in those exports.
+All file decoding, editing, previewing, and export happen locally in the user's browser. Image URLs remain available while referenced by the bounded undo history and are released when no retained state needs them or the app unmounts. Images and edit history are not automatically persisted across a page reload. Use **Project → Save project** to download a local `.iip` file and **Open project** to add its images back to the gallery. Project files include original bytes and metadata, including any original GPS data; treat them like the original images. They do not contain the undo history, unsaved editor drafts, or browser workflow preferences. The browser cannot confirm that a prepared download was actually saved to disk. The offline cache contains only application assets; it never stores image blobs, project files, or editing state. Only named workflow configurations, the welcome preference, and the session-recovery preference use localStorage; the app keeps working when storage is blocked. When **Project → Remember my images on this device** is switched on, the gallery (not editor drafts or undo history) is mirrored to this browser's IndexedDB as a regular project blob about 1.5 s after each change, offered for recovery on the next visit, and deleted when the option is switched off or the gallery is emptied; it never leaves the device, but anyone using the same browser profile can recover it. Production builds ship a Content-Security-Policy that only allows connections to the app's own origin, so the browser itself enforces that images are not sent anywhere. The policy includes `'wasm-unsafe-eval'` so the OCR, AI and HEIC tools can compile WebAssembly; JavaScript `eval` remains blocked. The AI models, OCR engine and language data are served from this same origin and run in workers on the device. Edited JPEG/WebP images are saved in their original format; image and PDF exports are re-encoded through a canvas, so EXIF data such as GPS location is not included in those exports.
 
 ## Memory and cancellation
 
@@ -91,9 +100,22 @@ Background removal and full-size content-bound detection transfer pixel buffers 
 
 Open an individual image and choose **Straighten**, **Visual crop**, or **Perspective** in the tool rail. Each tool uses a locally staged rendering of the current draft, including earlier unsaved adjustments and annotations. Apply or cancel the active geometry adjustment before using Save or image navigation. Applying a tool adds one undoable draft change; the gallery changes only on Save or image navigation. Cancel adjustment discards its selection, and Cancel editing discards all unapplied gallery changes. Corner controls support pointer/touch input, arrow keys, Shift for larger keyboard steps, and percentage inputs. Crops use exact pixel-edge rounding. Fine rotations expand the canvas to retain the entire source. Perspective output dimensions use the average lengths of opposing selected edges; they cannot infer the physical aspect ratio of the photographed document.
 
+## On-device AI, OCR and HEIC
+
+Runtimes and models load only when a tool needs them and run locally:
+
+| Tool | Component | Download on first use |
+| --- | --- | --- |
+| Remove background › Automatic (AI) | ONNX Runtime Web (single-threaded WASM) + `u2netp.onnx` | ≈ 19 MB |
+| Hide › Detect faces | ONNX Runtime Web + `ultraface-rfb-640.onnx` | ≈ 16 MB (runtime shared with the above) |
+| Hide › Detect text | Tesseract.js 7 core + `spa`, `eng` and the interface language (`best_int` data) | ≈ 6–9 MB |
+| HEIC import (non-Safari) | libheif-js bundle | ≈ 2 MB |
+
+Models live in `public/ai/models/`; the runtimes and language data are copied from `node_modules` into `/ai/vendor/` by the `scripts/ai-assets.mjs` Vite plugin (served directly in development). Licences and checksums are listed in `public/ai/THIRD_PARTY_NOTICES.txt`. Detection can miss faces or text, so the interface always asks the user to review the image before sharing it.
+
 ## Offline operation
 
-Production builds generate `sw.js` with an explicit asset list and a content-derived cache version. On the first online visit, the app prepares all shipped HTML, CSS, JavaScript, workers, icons, and lazy chunks; **Project** shows when preparation is complete. Subsequent root-page visits and image editing/export can work without a network connection. Images and projects remain session-only unless explicitly downloaded. Browser cache eviction or cleared site storage can remove offline availability; revisit online to prepare it again.
+Production builds generate `sw.js` with an explicit asset list and a content-derived cache version. Large on-demand files (`/ai/…`, `.wasm`, `.onnx`, OCR data) are not precached: they are cached the first time a tool uses them, in a separate cache keyed by their own content hash, so app updates keep them while they are unchanged. On the first online visit, the app prepares all shipped HTML, CSS, JavaScript, workers, icons, and lazy chunks; **Project** shows when preparation is complete. Subsequent root-page visits and image editing/export can work without a network connection. Images and projects remain session-only unless explicitly downloaded. Browser cache eviction or cleared site storage can remove offline availability; revisit online to prepare it again.
 
 Service workers require HTTPS (localhost is allowed for development). Development builds do not register a worker. A failed cache install removes only its new cache; active caches remain available. Updates wait while existing app tabs are open, and the menu asks the user to save work and close those tabs. No update reloads a workspace automatically. Activation removes old caches belonging to this application only. Fetch handling is restricted to the build asset list and root navigation; there is no runtime caching of imported files or unrelated URLs.
 
@@ -107,4 +129,4 @@ npm run preview -- --host 127.0.0.1 --port 4180
 npm run test:e2e
 ```
 
-The existing `node scripts/capture.mjs` regression suite uses the development server on port 4173 by default (`TEST_URL` can override it). The geometry/offline suite disables the network after installation and verifies reload, local perspective processing, lazily loaded PDF and ZIP exports, and hashed project export. Offline lifecycle checks cover waiting updates, preserved work, safe activation, unrelated caches, and rollback after incomplete installation. Project safety checks cover payload corruption and legacy-format compatibility. Browser screenshots and PDF test artifacts are written below `.impeccable/review`.
+The existing `node scripts/capture.mjs` regression suite uses the development server on port 4173 by default (`TEST_URL` can override it). `scripts/usability.mjs` runs the colour adjustments in WebKit and Chromium and compares the pixels, and covers keyboard shortcuts, home tasks, session recovery, source-format export, editor number fields, mobile fit and language switching. `scripts/on-device-ai.mjs` checks HEIC import, AI background removal and face detection in Chromium and WebKit, OCR covering of personal data and the on-demand offline cache; it downloads two verified third-party sample files into `node_modules/.cache` on first run. The geometry/offline suite disables the network after installation and verifies reload, local perspective processing, lazily loaded PDF and ZIP exports, and hashed project export. Offline lifecycle checks cover waiting updates, preserved work, safe activation, unrelated caches, and rollback after incomplete installation. Project safety checks cover payload corruption and legacy-format compatibility. Browser screenshots and PDF test artifacts are written below `.impeccable/review`.

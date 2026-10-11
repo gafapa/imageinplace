@@ -4,9 +4,10 @@ import { applyGeometry } from './geometryTask.js';
 import { loadImage } from './imageEngine.js';
 import useBatchTask from './useBatchTask.js';
 import './GeometryEditor.css';
+import { t } from '../i18n/index.js';
 
-const labels = ['Superior izquierda', 'Superior derecha', 'Inferior derecha', 'Inferior izquierda'];
-const titles = { deskew: 'Enderezar', visualcrop: 'Recorte visual', perspective: 'Corregir perspectiva' };
+const labels = () => [t('Superior izquierda'), t('Superior derecha'), t('Inferior derecha'), t('Inferior izquierda')];
+const titles = () => ({ deskew: t('Enderezar'), visualcrop: t('Recorte visual'), perspective: t('Corregir perspectiva') });
 const clamp = (value, low = 0, high = 1) => Math.min(high, Math.max(low, value));
 const cropPoints = (crop) => [{ x: crop.x, y: crop.y }, { x: crop.x + crop.width, y: crop.y },
   { x: crop.x + crop.width, y: crop.y + crop.height }, { x: crop.x, y: crop.y + crop.height }];
@@ -33,7 +34,7 @@ export default function GeometryEditor({ item, tool, onApply, onClose, onBusy })
 
   useEffect(() => {
     let active = true;
-    loadImage(item.url).then((image) => { if (active) setSource(image); }).catch(() => { if (active) setError('No se pudo abrir la imagen.'); });
+    loadImage(item.url).then((image) => { if (active) setSource(image); }).catch(() => { if (active) setError(t('No se pudo abrir la imagen.')); });
     return () => { active = false; };
   }, [item.url]);
   useEffect(() => () => onBusy?.(false), [onBusy]);
@@ -108,50 +109,50 @@ export default function GeometryEditor({ item, tool, onApply, onClose, onBusy })
     setBusy(true); setError(''); onBusy?.(true);
     const signal = task.start();
     try { const blob = await applyGeometry(item, tool, options, signal); signal.throwIfAborted(); await onApply([{ item, blob }]); }
-    catch (cause) { setError(cause.name === 'AbortError' ? 'Operación cancelada. El borrador sigue intacto.' : cause.message); }
+    catch (cause) { setError(cause.name === 'AbortError' ? t('Operación cancelada. El borrador sigue intacto.') : cause.message); }
     finally { setBusy(false); onBusy?.(false); }
   };
   const handles = tool === 'perspective' ? points : cropPoints(crop);
   return <>
-    <section className="canvas-workspace geometry-workspace" aria-label={`Vista previa: ${titles[tool]}`}>
-      <div className="workspace-meta"><span>{item.name}</span><span>{source ? `${source.naturalWidth} × ${source.naturalHeight} px` : 'Abriendo…'}</span></div>
+    <section className="canvas-workspace geometry-workspace" aria-label={t('Vista previa: {v0}', { v0: titles()[tool] })}>
+      <div className="workspace-meta"><span>{item.name}</span><span>{source ? `${source.naturalWidth} × ${source.naturalHeight} px` : t('Abriendo…')}</span></div>
       <div className="geometry-stage">
         <div className={`geometry-wrap ${tool === 'deskew' ? 'geometry-grid' : ''}`} onPointerDown={(event) => { if (tool === 'visualcrop' && event.target === canvasRef.current) beginDrag(event, 'new'); }} onPointerMove={moveDrag} onPointerUp={() => { dragRef.current = null; }} onPointerCancel={() => { dragRef.current = null; }}>
-          <canvas ref={canvasRef} className="geometry-source" aria-label="Imagen para ajustar" />
+          <canvas ref={canvasRef} className="geometry-source" aria-label={t('Imagen para ajustar')} />
           {source && tool !== 'deskew' && <>
             {tool === 'perspective' ? <svg className="geometry-outline" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polygon points={points.map((p) => `${p.x * 100},${p.y * 100}`).join(' ')} /></svg> : <>
               <div className="geometry-crop-frame" style={{ left: `${crop.x * 100}%`, top: `${crop.y * 100}%`, width: `${crop.width * 100}%`, height: `${crop.height * 100}%` }} />
-              <button type="button" className="geometry-move" disabled={busy} style={{ left: `${(crop.x + crop.width / 2) * 100}%`, top: `${(crop.y + crop.height / 2) * 100}%` }} aria-label="Mover recorte" title="Arrastra para mover el recorte" onPointerDown={(event) => beginDrag(event, 'move')} onKeyDown={(event) => keys(event, 'move')}>↔</button>
+              <button type="button" className="geometry-move" disabled={busy} style={{ left: `${(crop.x + crop.width / 2) * 100}%`, top: `${(crop.y + crop.height / 2) * 100}%` }} aria-label={t('Mover recorte')} title={t('Arrastra para mover el recorte')} onPointerDown={(event) => beginDrag(event, 'move')} onKeyDown={(event) => keys(event, 'move')}>↔</button>
             </>}
-            {handles.map((point, index) => <button key={index} type="button" className={`geometry-handle ${selectedCorner === index ? 'selected' : ''}`} disabled={busy} style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }} aria-label={`Esquina ${labels[index].toLowerCase()}`} title={`${labels[index]}: arrastra o usa las flechas`} onFocus={() => setSelectedCorner(index)} onPointerDown={(event) => beginDrag(event, index)} onKeyDown={(event) => keys(event, index)}>{index + 1}</button>)}
+            {handles.map((point, index) => <button key={index} type="button" className={`geometry-handle ${selectedCorner === index ? 'selected' : ''}`} disabled={busy} style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }} aria-label={t('Esquina {v0}', { v0: labels()[index].toLowerCase() })} title={t('{v0}: arrastra o usa las flechas', { v0: labels()[index] })} onFocus={() => setSelectedCorner(index)} onPointerDown={(event) => beginDrag(event, index)} onKeyDown={(event) => keys(event, index)}>{index + 1}</button>)}
           </>}
         </div>
       </div>
-      <p className="geometry-instructions">{tool === 'deskew' ? 'Ajusta el ángulo usando las líneas de la cuadrícula.' : 'Arrastra las esquinas o usa las flechas del teclado. Mayús permite pasos mayores.'}</p>
+      <p className="geometry-instructions">{tool === 'deskew' ? t('Ajusta el ángulo usando las líneas de la cuadrícula.') : t('Arrastra las esquinas o usa las flechas del teclado. Mayús permite pasos mayores.')}</p>
     </section>
     <aside className="settings-panel geometry-controls" aria-busy={busy}>
-      <h2>{titles[tool]}</h2>
-      <p className="batch-hint">Se aplicará al borrador actual. Guarda la edición para actualizar la galería.</p>
+      <h2>{titles()[tool]}</h2>
+      <p className="batch-hint">{t('Se aplicará al borrador actual. Guarda la edición para actualizar la galería.')}</p>
       <fieldset disabled={busy || !source}>
         {tool === 'deskew' ? <>
-          <label className="range-control"><span><strong>Ángulo</strong><output>{angle.toFixed(1)}°</output></span><input aria-label="Ángulo de enderezado" type="range" min="-15" max="15" step="0.1" value={angle} onChange={(event) => setAngle(Number(event.target.value))} /></label>
-          <label className="text-field"><span>Ángulo exacto (°)</span><input type="number" min="-15" max="15" step="0.1" value={angle} onChange={(event) => { const value = Number(event.target.value); if (Number.isFinite(value)) setAngle(clamp(value, -15, 15)); }} /></label>
-          <label className="select-field"><span>Fondo de las esquinas</span><select value={background} onChange={(event) => setBackground(event.target.value)}><option value="white">Blanco</option><option value="transparent">Transparente (PNG)</option></select></label>
+          <label className="range-control"><span><strong>{t('Ángulo')}</strong><output>{angle.toFixed(1)}°</output></span><input aria-label={t('Ángulo de enderezado')} type="range" min="-15" max="15" step="0.1" value={angle} onChange={(event) => setAngle(Number(event.target.value))} /></label>
+          <label className="text-field"><span>{t('Ángulo exacto (°)')}</span><input type="number" min="-15" max="15" step="0.1" value={angle} onChange={(event) => { const value = Number(event.target.value); if (Number.isFinite(value)) setAngle(clamp(value, -15, 15)); }} /></label>
+          <label className="select-field"><span>{t('Fondo de las esquinas')}</span><select value={background} onChange={(event) => setBackground(event.target.value)}><option value="white">{t('Blanco')}</option><option value="transparent">{t('Transparente (PNG)')}</option></select></label>
         </> : tool === 'visualcrop' ? <div className="geometry-fields">
-          {['x', 'y', 'width', 'height'].map((key, index) => <label className="text-field" key={key}><span>{['Izquierda (%)', 'Arriba (%)', 'Ancho (%)', 'Alto (%)'][index]}</span><input type="number" min="0" max="100" step="0.5" value={Number((crop[key] * 100).toFixed(2))} onChange={(event) => {
+          {['x', 'y', 'width', 'height'].map((key, index) => <label className="text-field" key={key}><span>{[t('Izquierda (%)'), t('Arriba (%)'), t('Ancho (%)'), t('Alto (%)')][index]}</span><input type="number" min="0" max="100" step="0.5" value={Number((crop[key] * 100).toFixed(2))} onChange={(event) => {
             const value = Number(event.target.value) / 100;
             setCrop((current) => ({ ...current, [key]: key === 'x' ? clamp(value, 0, 1 - current.width) : key === 'y' ? clamp(value, 0, 1 - current.height) : key === 'width' ? clamp(value, 0.01, 1 - current.x) : clamp(value, 0.01, 1 - current.y) }));
           }} /></label>)}
         </div> : <>
-          <label className="select-field"><span id="geometry-corner-label">Esquina</span><select aria-labelledby="geometry-corner-label" value={selectedCorner} onChange={(event) => setSelectedCorner(Number(event.target.value))}>{labels.map((label, index) => <option value={index} key={label}>{label}</option>)}</select></label>
-          <div className="geometry-fields">{['x', 'y'].map((axis) => <label className="text-field" key={axis}><span>{axis === 'x' ? 'Horizontal (%)' : 'Vertical (%)'}</span><input type="number" min="0" max="100" step="0.5" value={Number((points[selectedCorner][axis] * 100).toFixed(2))} onChange={(event) => changeCorner(selectedCorner, { ...points[selectedCorner], [axis]: Number(event.target.value) / 100 })} /></label>)}</div>
+          <label className="select-field"><span id="geometry-corner-label">{t('Esquina')}</span><select aria-labelledby="geometry-corner-label" value={selectedCorner} onChange={(event) => setSelectedCorner(Number(event.target.value))}>{labels().map((label, index) => <option value={index} key={label}>{label}</option>)}</select></label>
+          <div className="geometry-fields">{['x', 'y'].map((axis) => <label className="text-field" key={axis}><span>{axis === 'x' ? t('Horizontal (%)') : t('Vertical (%)')}</span><input type="number" min="0" max="100" step="0.5" value={Number((points[selectedCorner][axis] * 100).toFixed(2))} onChange={(event) => changeCorner(selectedCorner, { ...points[selectedCorner], [axis]: Number(event.target.value) / 100 })} /></label>)}</div>
         </>}
-        <button className="toolbar-button" type="button" onClick={() => { setCrop(defaultCrop()); setPoints(defaultCorners()); setAngle(0); setError(''); }}>Restablecer selección</button>
+        <button className="toolbar-button" type="button" onClick={() => { setCrop(defaultCrop()); setPoints(defaultCorners()); setAngle(0); setError(''); }}>{t('Restablecer selección')}</button>
       </fieldset>
-      {tool !== 'deskew' && <figure className="geometry-result"><canvas ref={resultRef} hidden={!!size.error} aria-label="Vista previa del resultado" /><figcaption>{size.error ? 'Selección no válida' : 'Resultado'}</figcaption></figure>}
-      {size.width && !size.error && <p role="status">Resultado: {size.width} × {size.height} px</p>}
+      {tool !== 'deskew' && <figure className="geometry-result"><canvas ref={resultRef} hidden={!!size.error} aria-label={t('Vista previa del resultado')} /><figcaption>{size.error ? t('Selección no válida') : t('Resultado')}</figcaption></figure>}
+      {size.width && !size.error && <p role="status">{t('Resultado: {width} × {height} px', { width: size.width, height: size.height })}</p>}
       {(error || size.error) && <p className="error-message" role="alert">{error || size.error}</p>}
-      <div className="batch-footer"><button className="toolbar-button" type="button" onClick={busy ? task.cancel : onClose}>{busy ? 'Cancelar operación' : 'Cancelar ajuste'}</button><button className="primary-button" type="button" disabled={busy || !source || !!size.error} onClick={apply}>{busy ? 'Procesando…' : tool === 'deskew' ? 'Aplicar enderezado' : tool === 'visualcrop' ? 'Aplicar recorte' : 'Corregir perspectiva'}</button></div>
+      <div className="batch-footer"><button className="toolbar-button" type="button" onClick={busy ? task.cancel : onClose}>{busy ? t('Cancelar operación') : t('Cancelar ajuste')}</button><button className="primary-button" type="button" disabled={busy || !source || !!size.error} onClick={apply}>{busy ? t('Procesando…') : tool === 'deskew' ? t('Aplicar enderezado') : tool === 'visualcrop' ? t('Aplicar recorte') : t('Corregir perspectiva')}</button></div>
     </aside>
   </>;
 }

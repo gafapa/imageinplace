@@ -3,6 +3,7 @@ import { Check, Gauge, X } from 'lucide-react';
 import { compressToTarget } from './compression';
 import './CompressionPanel.css';
 import useBatchTask, { checkCancelled } from './useBatchTask';
+import { t, tn } from '../i18n/index.js';
 
 const formatBytes = (bytes) => (Number.isFinite(bytes) ? `${(bytes / 1024).toFixed(bytes < 10240 ? 1 : 0)} KB` : '—');
 
@@ -26,7 +27,7 @@ export default function CompressionPanel({ items, onApply, onClose, onBusy }) {
   }, [selectionSignature, applied]);
 
   const process = async () => {
-    if (!items.length || !Number.isFinite(targetBytes) || targetBytes < 1024) { setError('Indica un tamaño objetivo de al menos 1 KB.'); return; }
+    if (!items.length || !Number.isFinite(targetBytes) || targetBytes < 1024) { setError(t('Indica un tamaño objetivo de al menos 1 KB.')); return; }
     setStatus('processing'); setError(''); setReport([]); setApplied(false); onBusy?.(true);
     const staged = [];
     const signal = task.start();
@@ -36,8 +37,8 @@ export default function CompressionPanel({ items, onApply, onClose, onBusy }) {
         const result = await compressToTarget(item.url, { targetBytes, format, allowResize, minDimension: 320, minQuality: 0.25, maxQuality: 0.95, signal });
         staged.push({ item, ...result, error: '' });
       } catch (cause) {
-        if (cause.name === 'AbortError') { setReport([]); setError('Operación cancelada. No se han aplicado cambios.'); setStatus('idle'); onBusy?.(false); return; }
-        staged.push({ item, error: cause?.message || 'No se pudo procesar.' });
+        if (cause.name === 'AbortError') { setReport([]); setError(t('Operación cancelada. No se han aplicado cambios.')); setStatus('idle'); onBusy?.(false); return; }
+        staged.push({ item, error: cause?.message || t('No se pudo procesar.') });
       }
       task.advance(staged.length);
       setReport([...staged]);
@@ -51,7 +52,7 @@ export default function CompressionPanel({ items, onApply, onClose, onBusy }) {
     // Re-check the captured selection and source URLs before committing staged output.
     const currentById = new Map(items.map((item) => [item.id, item]));
     const stale = report.length !== items.length || report.some(({ item }) => currentById.get(item.id)?.url !== item.url);
-    if (stale) { setError('La selección o las imágenes han cambiado. Vuelve a comprimir antes de aplicar.'); setReport([]); return; }
+    if (stale) { setError(t('La selección o las imágenes han cambiado. Vuelve a comprimir antes de aplicar.')); setReport([]); return; }
     setStatus('processing'); onBusy?.(true);
     const signal = task.start();
     try { await onApply(report.map(({ item, blob }) => ({ item: currentById.get(item.id), blob })), signal); setApplied(true); }
@@ -60,15 +61,15 @@ export default function CompressionPanel({ items, onApply, onClose, onBusy }) {
   };
 
   return <section className="compression-panel" aria-busy={status === 'processing'}>
-    <div className="batch-heading"><div><span className="panel-kicker"><Gauge size={14} /> Compresión</span><h2>Reducir peso</h2></div><button className="icon-button" type="button" onClick={onClose} disabled={status === 'processing'} aria-label="Cerrar"><X /></button></div>
-    <p className="batch-hint">Procesa las imágenes en tu dispositivo y conserva un informe de cada resultado.</p>
-    <label className="text-field"><span>Tamaño máximo por imagen (KB)</span><input type="number" min="1" step="1" value={targetKb} onChange={(event) => { setTargetKb(event.target.value); setReport([]); setApplied(false); }} disabled={status === 'processing'} /></label>
-    <label className="select-field"><span>Formato de salida</span><select value={format} onChange={(event) => { setFormat(event.target.value); setReport([]); setApplied(false); }} disabled={status === 'processing'}><option value="image/jpeg">JPEG</option><option value="image/webp">WebP</option></select></label>
-    <label className="compression-check"><input type="checkbox" checked={allowResize} onChange={(event) => { setAllowResize(event.target.checked); setReport([]); setApplied(false); }} disabled={status === 'processing'} /><span>Reducir dimensiones si es necesario</span></label>
-    <p className="compression-selection">{items.length} {items.length === 1 ? 'imagen seleccionada' : 'imágenes seleccionadas'}</p>
-    <div className="batch-footer"><button className="primary-button" type="button" onClick={process} disabled={status === 'processing' || !items.length}>{status === 'processing' ? 'Comprimiendo…' : 'Comprimir selección'}</button>{successful && <button className="toolbar-button" type="button" onClick={apply} disabled={applied || status === 'processing'}>{applied ? 'Aplicado' : 'Aplicar resultados'}</button>}</div>
-    {status === 'processing' && <div className="batch-footer"><span role="status">Procesando {task.progress}/{items.length}…</span><button type="button" className="toolbar-button" onClick={task.cancel}>Cancelar</button></div>}
+    <div className="batch-heading"><div><span className="panel-kicker"><Gauge size={14} />{' '}{t('Compresión')}</span><h2>{t('Reducir peso')}</h2></div><button className="icon-button" type="button" onClick={onClose} disabled={status === 'processing'} aria-label={t('Cerrar')}><X /></button></div>
+    <p className="batch-hint">{t('Procesa las imágenes en tu dispositivo y conserva un informe de cada resultado.')}</p>
+    <label className="text-field"><span>{t('Tamaño máximo por imagen (KB)')}</span><input type="number" min="1" step="1" value={targetKb} onChange={(event) => { setTargetKb(event.target.value); setReport([]); setApplied(false); }} disabled={status === 'processing'} /></label>
+    <label className="select-field"><span>{t('Formato de salida')}</span><select value={format} onChange={(event) => { setFormat(event.target.value); setReport([]); setApplied(false); }} disabled={status === 'processing'}><option value="image/jpeg">{t('JPEG')}</option><option value="image/webp">{t('WebP')}</option></select></label>
+    <label className="compression-check"><input type="checkbox" checked={allowResize} onChange={(event) => { setAllowResize(event.target.checked); setReport([]); setApplied(false); }} disabled={status === 'processing'} /><span>{t('Reducir dimensiones si es necesario')}</span></label>
+    <p className="compression-selection">{tn(items.length, '{n} imagen seleccionada', '{n} imágenes seleccionadas')}</p>
+    <div className="batch-footer"><button className="primary-button" type="button" onClick={process} disabled={status === 'processing' || !items.length}>{status === 'processing' ? t('Comprimiendo…') : t('Comprimir selección')}</button>{successful && <button className="toolbar-button" type="button" onClick={apply} disabled={applied || status === 'processing'}>{applied ? t('Aplicado') : t('Aplicar resultados')}</button>}</div>
+    {status === 'processing' && <div className="batch-footer"><span role="status">{t('Procesando {done}/{total}…', { done: task.progress, total: items.length })}</span><button type="button" className="toolbar-button" onClick={task.cancel}>{t('Cancelar')}</button></div>}
     {error && <p className="error-message" role="alert">{error}</p>}
-    {report.length > 0 && <div className="compression-report" aria-live="polite"><h3>Informe</h3>{report.map((entry) => <div className="compression-result" key={entry.item.id}><div><strong>{entry.item.name}</strong>{entry.error ? <small className="compression-fail">{entry.error}</small> : <small>{formatBytes(entry.item.size)} → {formatBytes(entry.blob.size)} · {entry.width} × {entry.height} px</small>}</div>{entry.error ? <span className="compression-fail">Error</span> : entry.metTarget ? <span className="compression-ok"><Check size={14} /> Objetivo</span> : <span className="compression-fail">No alcanzado</span>}</div>)}</div>}
+    {report.length > 0 && <div className="compression-report" aria-live="polite"><h3>{t('Informe')}</h3>{report.map((entry) => <div className="compression-result" key={entry.item.id}><div><strong>{entry.item.name}</strong>{entry.error ? <small className="compression-fail">{entry.error}</small> : <small>{formatBytes(entry.item.size)} → {formatBytes(entry.blob.size)} · {entry.width} × {entry.height}{' '}{t('px')}</small>}</div>{entry.error ? <span className="compression-fail">{t('Error')}</span> : entry.metTarget ? <span className="compression-ok"><Check size={14} />{' '}{t('Objetivo')}</span> : <span className="compression-fail">{t('No alcanzado')}</span>}</div>)}</div>}
   </section>;
 }

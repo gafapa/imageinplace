@@ -1,11 +1,12 @@
 import { createRenames } from './rename.js';
+import { t } from '../i18n/index.js';
 
 const MAX_SIDE = 10000; const MAX_PIXELS = 40_000_000;
 const mime = (format) => ({ jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' }[format] || format || 'image/jpeg');
-const load = (url) => new Promise((resolve, reject) => { const image = new Image(); image.onload = () => resolve(image); image.onerror = () => reject(new Error('No se pudo leer una imagen.')); image.src = url; });
+const load = (url) => new Promise((resolve, reject) => { const image = new Image(); image.onload = () => resolve(image); image.onerror = () => reject(new Error(t('No se pudo leer una imagen.'))); image.src = url; });
 const blobFrom = (canvas, type, quality) => new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('No se pudo exportar la imagen.')), type, quality));
 const numberOr = (value, fallback) => { const number = Number(value); return value !== '' && value != null && Number.isFinite(number) ? number : fallback; };
-const safeSize = (width, height) => { if (width < 1 || height < 1 || width > MAX_SIDE || height > MAX_SIDE || width * height > MAX_PIXELS) throw new Error('El resultado supera los límites del navegador.'); };
+const safeSize = (width, height) => { if (width < 1 || height < 1 || width > MAX_SIDE || height > MAX_SIDE || width * height > MAX_PIXELS) throw new Error(t('El resultado supera los límites del navegador.')); };
 
 export const defaultWorkflow = { version: 1, steps: [] };
 export const WORKFLOW_STORAGE_KEY = 'imageinplace-workflows-v1';
@@ -21,13 +22,13 @@ function drawSource(source, width, height) { const canvas = canvasFor(width, hei
 
 /** Apply a versioned workflow to one current gallery URL. */
 export async function applyWorkflow(item, workflow, context = {}) {
-  if (typeof document === 'undefined') throw new Error('Los flujos necesitan un navegador.');
+  if (typeof document === 'undefined') throw new Error(t('Los flujos necesitan un navegador.'));
   const source = await load(item.url); let canvas = drawSource(source, source.naturalWidth, source.naturalHeight); let name = item.name;
   for (const step of workflow?.steps || []) {
     context.signal?.throwIfAborted();
     const p = step.params || {};
     if (step.type === 'resize') { const edge = Math.max(1, Number(p.maxEdge) || 2000); const scale = Math.min(1, edge / Math.max(canvas.width, canvas.height)); if (scale < 1) canvas = drawSource(canvas, Math.max(1, Math.round(canvas.width * scale)), Math.max(1, Math.round(canvas.height * scale))); }
-    if (step.type === 'crop') { let left = 0; let top = 0; let right = 0; let bottom = 0; if (p.ratio > 0) { const target = Number(p.ratio); const current = canvas.width / canvas.height; if (current > target) { const width = canvas.height * target; left = right = (canvas.width - width) / 2; } else { const height = canvas.width / target; top = bottom = (canvas.height - height) / 2; } } else { const edges = ['left', 'top', 'right', 'bottom'].map((key) => Math.min(100, Math.max(0, numberOr(p[key], 0)))); if (edges[0] + edges[2] >= 100 || edges[1] + edges[3] >= 100) throw new Error('El recorte del flujo elimina toda la imagen. Revisa los bordes.'); left = canvas.width * edges[0] / 100; top = canvas.height * edges[1] / 100; right = canvas.width * edges[2] / 100; bottom = canvas.height * edges[3] / 100; } const out = canvasFor(Math.round(canvas.width - left - right), Math.round(canvas.height - top - bottom)); out.getContext('2d').drawImage(canvas, left, top, out.width, out.height, 0, 0, out.width, out.height); canvas = out; }
+    if (step.type === 'crop') { let left = 0; let top = 0; let right = 0; let bottom = 0; if (p.ratio > 0) { const target = Number(p.ratio); const current = canvas.width / canvas.height; if (current > target) { const width = canvas.height * target; left = right = (canvas.width - width) / 2; } else { const height = canvas.width / target; top = bottom = (canvas.height - height) / 2; } } else { const edges = ['left', 'top', 'right', 'bottom'].map((key) => Math.min(100, Math.max(0, numberOr(p[key], 0)))); if (edges[0] + edges[2] >= 100 || edges[1] + edges[3] >= 100) throw new Error(t('El recorte del flujo elimina toda la imagen. Revisa los bordes.')); left = canvas.width * edges[0] / 100; top = canvas.height * edges[1] / 100; right = canvas.width * edges[2] / 100; bottom = canvas.height * edges[3] / 100; } const out = canvasFor(Math.round(canvas.width - left - right), Math.round(canvas.height - top - bottom)); out.getContext('2d').drawImage(canvas, left, top, out.width, out.height, 0, 0, out.width, out.height); canvas = out; }
     if (step.type === 'rotate') { const degrees = ((Number(p.degrees) || 0) % 360 + 360) % 360; const radians = degrees * Math.PI / 180; const out = canvasFor(Math.ceil(Math.abs(canvas.width * Math.cos(radians)) + Math.abs(canvas.height * Math.sin(radians))), Math.ceil(Math.abs(canvas.width * Math.sin(radians)) + Math.abs(canvas.height * Math.cos(radians)))); const rotateContext = out.getContext('2d'); rotateContext.translate(out.width / 2, out.height / 2); rotateContext.rotate(radians); rotateContext.drawImage(canvas, -canvas.width / 2, -canvas.height / 2); canvas = out; }
     if (step.type === 'watermark') {
       const text = String(p.text || '');

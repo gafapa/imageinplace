@@ -1,5 +1,6 @@
 import { canvasFromUrl, canvasToBlob, cropCanvas, flattenForFormat } from './background';
 import { validateDimensions } from './imageLimits';
+import { t } from '../i18n/index.js';
 
 export function runPixelWorker(imageData, operation, options, signal) {
   return new Promise((resolve, reject) => {
@@ -10,9 +11,9 @@ export function runPixelWorker(imageData, operation, options, signal) {
       worker.terminate();
       if (cause) reject(cause); else resolve(result);
     };
-    const abort = () => finish(new DOMException('Operación cancelada.', 'AbortError'));
+    const abort = () => finish(new DOMException(t('Operación cancelada.'), 'AbortError'));
     signal?.addEventListener('abort', abort, { once: true });
-    worker.onerror = () => finish(new Error('No se pudo procesar la imagen.'));
+    worker.onerror = () => finish(new Error(t('No se pudo procesar la imagen.')));
     worker.onmessage = ({ data }) => data.error ? finish(new Error(data.error)) : finish(null, data);
     try {
       worker.postMessage({ data: imageData.data.buffer, width: imageData.width, height: imageData.height, operation, options }, [imageData.data.buffer]);

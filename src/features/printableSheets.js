@@ -1,4 +1,5 @@
 import { checkCancelled } from './batchTask.js';
+import { t } from '../i18n/index.js';
 export const A4_POINTS = { portrait: { width: 595.2756, height: 841.8898 }, landscape: { width: 841.8898, height: 595.2756 } };
 export const mmToPoints = (value) => Number(value) * 72 / 25.4;
 
@@ -11,7 +12,7 @@ export function printableLayout({ orientation = 'portrait', rows = 3, columns = 
   const titleHeight = title ? 18 : 0;
   const cellWidth = (page.width - marginPt * 2 - gapPt * (safeColumns - 1)) / safeColumns;
   const cellHeight = (page.height - marginPt * 2 - titleHeight - gapPt * (safeRows - 1)) / safeRows;
-  if (cellWidth < 18 || cellHeight < 18) throw new Error('La cuadrícula no deja espacio suficiente para las imágenes.');
+  if (cellWidth < 18 || cellHeight < 18) throw new Error(t('La cuadrícula no deja espacio suficiente para las imágenes.'));
   return { ...page, rows: safeRows, columns: safeColumns, marginPt, gapPt, titleHeight, cellWidth, cellHeight, perPage: safeRows * safeColumns };
 }
 
@@ -19,7 +20,7 @@ const RASTER_SCALE = 3; // pixels per PDF point (~216 dpi)
 const CAPTION_SPACE = 42;
 
 const loadImage = (url) => new Promise((resolve, reject) => {
-  const image = new Image(); image.onload = () => resolve(image); image.onerror = () => reject(new Error('No se pudo leer una imagen.')); image.src = url;
+  const image = new Image(); image.onload = () => resolve(image); image.onerror = () => reject(new Error(t('No se pudo leer una imagen.'))); image.src = url;
 });
 const canvasBytes = (canvas, type, quality) => new Promise((resolve, reject) => {
   canvas.toBlob((blob) => (blob ? blob.arrayBuffer().then(resolve, reject) : reject(new Error('No se pudo preparar la página.'))), type, quality);
@@ -52,11 +53,11 @@ async function rasterizeTitle(title, boxWidth, boxHeight) {
 
 /** Build an A4 PDF from current gallery URLs. All image content is rasterized locally. */
 export async function generatePrintableSheets(items, options = {}) {
-  if (typeof document === 'undefined') throw new Error('La impresión necesita un navegador.');
-  if (!Array.isArray(items) || !items.length) throw new Error('No hay imágenes seleccionadas.');
-  if (items.length > 500) throw new Error('El límite es de 500 imágenes por documento.');
+  if (typeof document === 'undefined') throw new Error(t('La impresión necesita un navegador.'));
+  if (!Array.isArray(items) || !items.length) throw new Error(t('No hay imágenes seleccionadas.'));
+  if (items.length > 500) throw new Error(t('El límite es de 500 imágenes por documento.'));
   const layout = printableLayout(options); const pages = Math.ceil(items.length / layout.perPage);
-  if (pages > 100) throw new Error('El documento supera el límite de 100 páginas.');
+  if (pages > 100) throw new Error(t('El documento supera el límite de 100 páginas.'));
   const { PDFDocument } = await import('pdf-lib');
   const pdf = await PDFDocument.create();
   const title = options.title ? String(options.title).slice(0, 120) : '';

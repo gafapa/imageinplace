@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, FileImage, Redo2, RotateCcw, Undo2, Upload, X } from 'lucide-react';
-import { initialSettings, clamp, loadImage, renderImage, saveFormatFor, SAVE_QUALITY } from './imageEngine';
+import { initialSettings, clamp, loadImage, renderImage, saveFormatFor, settingsFor, SAVE_QUALITY } from './imageEngine';
 import GeometryEditor from './GeometryEditor';
 import AnnotationsPanel from './AnnotationsPanel';
 import { renderAnnotations } from './annotations';
@@ -12,6 +12,12 @@ import BackgroundPanel from './BackgroundPanel';
 import TrimPanel from './TrimPanel';
 import { validateDimensions } from './imageLimits';
 import { flattenForFormat } from './background';
+import ToolPanel from './ToolPanel';
+import { toolGroups, tools } from './tools';
+import { isTextEntry, shortcutFor } from './shortcuts';
+import { detectFaces } from './ai/onDevice';
+import { recognizeLines } from './ai/ocr';
+import { t, tn } from '../i18n/index.js';
 
 const HISTORY_LIMIT = 30;
 const HISTORY_BYTES = 128 * 1024 * 1024;
@@ -20,10 +26,12 @@ const GEOMETRY_TOOLS = ['deskew', 'visualcrop', 'perspective'];
 const PANEL_TOOLS = [...GEOMETRY_TOOLS, 'compress', 'rename', 'canvas', 'workflow', 'background', 'trim'];
 // Consecutive changes to the same control within this window collapse into one undo step.
 const HISTORY_GROUP_MS = 800;
+// Panels that stage the current draft as a file (actionItems) and hand back a result.
+const ACTION_PANELS = { compress: CompressionPanel, canvas: CanvasPanel, background: BackgroundPanel, trim: TrimPanel, workflow: WorkflowPanel };
 
 const settingsChanged = (value) => Object.keys(initialSettings).filter((key) => key !== 'format' && key !== 'quality').some((key) => !Object.is(value[key], initialSettings[key]));
 
-export default function Editor({ items, setItems, setSelectedIds, activeIndex, setActiveIndex, onAddFiles, onBack, onSave, ToolPanel, tools, initialTool = 'adjust' }) {
+export default function Editor({ items, setItems, setSelectedIds, activeIndex, setActiveIndex, onAddFiles, onBack, onSave, initialTool = 'adjust' }) {
   const item = items[activeIndex];
   const [draftItem, setDraftItem] = useState(null);
   const [draftBlob, setDraftBlob] = useState(null);
@@ -36,7 +44,7 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
   }, []);
   const [source, setSource] = useState(null);
   const [activeTool, setActiveTool] = useState(initialTool);
-  const [settings, setSettings] = useState(initialSettings);
+  const [settings, setSettings] = useState(() => settingsFor(item.type));
   const [outputSize, setOutputSize] = useState({ width: 1, height: 1 });
   const [aspectLocked, setAspectLocked] = useState(true);
   const [privacyAreas, setPrivacyAreas] = useState([]);
@@ -88,7 +96,7 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
       .catch(() => {
         if (!active) return;
         setSource(null);
-        setLoadError('No podemos leer esta imagen. Ciérrala y prueba con un archivo JPG, PNG o WebP válido.');
+        setLoadError(t('No podemos leer esta imagen. Ciérrala y prueba con un archivo JPG, PNG o WebP válido.'));
         setExportStatus('error');
       });
     return () => { active = false; };
@@ -111,7 +119,6 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
   const takeSnapshot = () => ({ settings, outputSize, privacyAreas, annotations, customSize: customSizeRef.current, draftItem, draftBlob });
   const recordHistory = (group = null, nextDraft = draftItem) => {
     // Only called from event handlers, never during render.
-    // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
     const last = lastHistoryRef.current;
     lastHistoryRef.current = { group, time: now };
@@ -173,7 +180,7 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
     recordHistory(null, nextDraft);
     setDraftItem(nextDraft);
     setDraftBlob(result.blob);
-    setSettings(initialSettings); setPrivacyAreas([]); setAnnotations([]);
+    setSettings(settingsFor(result.blob.type)); setPrivacyAreas([]); setAnnotations([]);
     setSelectedAnnotationId(null); setSelectedArea(0); customSizeRef.current = false;
     setActionItems([]); setActiveTool('adjust');
   };
@@ -190,7 +197,7 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
     if (!item.originalUrl) return;
     recordHistory();
     setDraftItem({ ...item, name: item.originalName || item.file?.name || item.name, type: item.originalType || item.file?.type || item.type, size: item.originalSize ?? item.file?.size ?? item.size, url: item.originalUrl });
-    setDraftBlob(null); setSettings(initialSettings); setPrivacyAreas([]); setAnnotations([]);
+    setDraftBlob(null); setSettings(settingsFor(item.originalType || item.file?.type || item.type)); setPrivacyAreas([]); setAnnotations([]);
     customSizeRef.current = false; setActionItems([]); setActiveTool('adjust');
   };
 
@@ -331,6 +338,62 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
     }));
   };
 
+  // Automatic privacy suggestions: faces become pixelated zones, chosen text lines solid fills.
+  const [detection, setDetection] = useState({ status: 'idle', message: '', lines: [] });
+  const detectionAbortRef = useRef(null);
+  useEffect(() => () => detectionAbortRef.current?.abort(), []);
+  const detectionCanvas = () => {
+    // Same geometry as the preview, without existing zones so already hidden content is still found.
+    const canvas = document.createElement('canvas');
+    renderImage(source, canvas, settings, customSizeRef.current ? outputSize : { width: 0, height: 0 }, []);
+    return canvas;
+  };
+  const startDetection = (message) => {
+    detectionAbortRef.current?.abort();
+    const controller = new AbortController();
+    detectionAbortRef.current = controller;
+    setDetection({ status: 'running', message, lines: [] });
+    return controller.signal;
+  };
+  const detectionFailed = (cause) => setDetection({ status: 'idle', lines: [], message: cause?.name === 'AbortError' ? t('Detección cancelada.') : t('No se pudo completar la detección: {v0}.', { v0: cause?.message || 'error desconocido' }) });
+  const addDetectedAreas = (boxes, mode) => {
+    recordHistory();
+    setDraftBlob(null);
+    setPrivacyAreas((current) => [...current, ...boxes.map((box) => ({ ...box, mode }))]);
+    setSelectedArea(privacyAreas.length);
+  };
+  const detectionActions = {
+    ...detection,
+    detectFaces: async () => {
+      if (!source) return;
+      const signal = startDetection(t('Buscando caras… (la primera vez se descarga el modelo)'));
+      try {
+        const boxes = await detectFaces(detectionCanvas(), { signal });
+        if (boxes.length) addDetectedAreas(boxes, 'pixelate');
+        setDetection({ status: 'idle', lines: [], message: boxes.length ? tn(boxes.length, '{n} cara ocultada. Revisa la imagen: puede haber caras de perfil, pequeñas o tapadas que no se detecten.', '{n} caras ocultadas. Revisa la imagen: puede haber caras de perfil, pequeñas o tapadas que no se detecten.') : t('No se encontraron caras. Puedes dibujar las zonas a mano.') });
+      } catch (cause) { detectionFailed(cause); }
+    },
+    detectText: async () => {
+      if (!source) return;
+      const signal = startDetection(t('Leyendo el texto… (la primera vez se descargan los idiomas)'));
+      try {
+        const lines = await recognizeLines(detectionCanvas(), { signal, locale: document.documentElement.lang || 'es',
+          onProgress: ({ status, progress }) => { if (status === 'recognizing text') setDetection((current) => (current.status === 'running' ? { ...current, message: t('Leyendo el texto… {v0}%', { v0: Math.round(progress * 100) }) } : current)); } });
+        setDetection(lines.length
+          ? { status: 'review', message: '', lines: lines.map((line) => ({ ...line, checked: line.sensitive })) }
+          : { status: 'idle', lines: [], message: t('No se encontró texto legible.') });
+      } catch (cause) { detectionFailed(cause); }
+    },
+    cancel: () => { detectionAbortRef.current?.abort(); setDetection({ status: 'idle', message: '', lines: [] }); },
+    toggleLine: (index) => setDetection((current) => ({ ...current, lines: current.lines.map((line, lineIndex) => (lineIndex === index ? { ...line, checked: !line.checked } : line)) })),
+    setAllLines: (checked) => setDetection((current) => ({ ...current, lines: current.lines.map((line) => ({ ...line, checked })) })),
+    coverLines: () => {
+      const chosen = detection.lines.filter((line) => line.checked);
+      if (chosen.length) addDetectedAreas(chosen.map((line) => line.box), 'fill');
+      setDetection({ status: 'idle', lines: [], message: chosen.length ? tn(chosen.length, '{n} línea tapada.', '{n} líneas tapadas.') : '' });
+    },
+  };
+
   const deletePrivacyArea = () => {
     if (!privacyAreas.length) return;
     recordHistory();
@@ -372,77 +435,118 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
       await onSave([{ item: workingItem, blob, name: workingItem.name }]);
       leave();
     } catch {
-      setLoadError('No se pudo guardar la imagen. Prueba con un tamaño menor.');
+      setLoadError(t('No se pudo guardar la imagen. Prueba con un tamaño menor.'));
       setSaving(false);
     }
   };
 
   const geometryActive = GEOMETRY_TOOLS.includes(activeTool) && actionItems.length > 0;
+  const closePanel = () => setActiveTool('adjust');
+  const ActionPanel = ACTION_PANELS[activeTool];
+  const settingsPanel = activeTool === 'annotate'
+    ? <AnnotationsPanel annotations={annotations} selectedId={selectedAnnotationId} onSelect={setSelectedAnnotationId} onChange={updateAnnotations} onAdd={addAnnotation} onDelete={deleteAnnotation} />
+    : activeTool === 'rename'
+      ? <RenamePanel items={actionItems} allItems={items} onRename={applyIndividualRename} onClose={closePanel} />
+      : ActionPanel
+        ? <ActionPanel items={actionItems} allItems={items} onApply={applyIndividualResults} onClose={closePanel} onBusy={setActionBusy} />
+        : <ToolPanel onVisualCrop={() => chooseTool('visualcrop')} {...{ activeTool, settings, setSetting, outputSize, setOutputSize: updateOutputSize, aspectLocked, setAspectLocked, source, privacyAreas, selectedArea, setSelectedArea, addPrivacyArea, updatePrivacyArea: updateSelectedPrivacyArea, deletePrivacyArea, estimatedSize, detection: detectionActions }} />;
+  const handleKeyDown = (event) => {
+    if (event.defaultPrevented || isTextEntry(event.target)) return;
+    const blocked = saving || actionBusy || !source;
+    const canMove = !blocked && !geometryActive;
+    const command = shortcutFor(event);
+    // Sliders use PageUp/PageDown for large steps.
+    if ((command === 'previous' || command === 'next') && event.target.type === 'range') return;
+    const run = {
+      undo: () => !blocked && history.length > 0 && undo(),
+      redo: () => !blocked && future.length > 0 && redo(),
+      save: () => canMove && saveEdits(),
+      previous: () => canMove && activeIndex > 0 && saveEdits(activeIndex - 1),
+      next: () => canMove && activeIndex < items.length - 1 && saveEdits(activeIndex + 1),
+    }[command];
+    if (!run) return;
+    event.preventDefault();
+    run();
+  };  // Listen on the window: focus can fall back to <body> when the focused control disappears.
+  const keyHandlerRef = useRef(handleKeyDown);
+  useEffect(() => { keyHandlerRef.current = handleKeyDown; });
+  useEffect(() => {
+    const listener = (event) => keyHandlerRef.current(event);
+    window.addEventListener('keydown', listener);
+    return () => window.removeEventListener('keydown', listener);
+  }, []);
+
   return (
     <dialog ref={dialogRef} className="editor-shell individual-editor" aria-labelledby="individual-title" onCancel={(event) => { event.preventDefault(); if (!saving && !actionBusy) onBack(); }}>
       <header className="editor-header">
         <h2 id="individual-title" title={workingItem.name}>{workingItem.name}</h2>
-        <div className="header-action-group editor-navigation" role="group" aria-label="Navegación entre imágenes">
-          <button className="icon-button" onClick={() => saveEdits(activeIndex - 1)} disabled={activeIndex === 0 || saving || actionBusy || geometryActive || !source} aria-label="Imagen anterior" title="Guardar y pasar a la imagen anterior"><ChevronLeft /></button>
+        <div className="header-action-group editor-navigation" role="group" aria-label={t('Navegación entre imágenes')}>
+          <button className="icon-button" onClick={() => saveEdits(activeIndex - 1)} disabled={activeIndex === 0 || saving || actionBusy || geometryActive || !source} aria-label={t('Imagen anterior')} title={t('Guardar y pasar a la imagen anterior (RePág)')}><ChevronLeft /></button>
           <span>{activeIndex + 1}/{items.length}</span>
-          <button className="icon-button" onClick={() => saveEdits(activeIndex + 1)} disabled={activeIndex === items.length - 1 || saving || actionBusy || geometryActive || !source} aria-label="Imagen siguiente" title="Guardar y pasar a la imagen siguiente"><ChevronRight /></button>
+          <button className="icon-button" onClick={() => saveEdits(activeIndex + 1)} disabled={activeIndex === items.length - 1 || saving || actionBusy || geometryActive || !source} aria-label={t('Imagen siguiente')} title={t('Guardar y pasar a la imagen siguiente (AvPág)')}><ChevronRight /></button>
         </div>
         <div className="header-action-group editor-completion">
-          <button className="icon-button" onClick={onBack} disabled={saving || actionBusy} aria-label="Cancelar edición" title="Cancelar edición"><X /></button>
-          <button className="primary-button save-image-button" onClick={() => saveEdits()} disabled={saving || actionBusy || geometryActive || !source} aria-label="Guardar edición" title={geometryActive ? 'Aplica o cancela el ajuste antes de guardar' : 'Guardar edición'}><Check /></button>
+          <button className="icon-button" onClick={onBack} disabled={saving || actionBusy} aria-label={t('Cancelar edición')} title={t('Cancelar edición (Esc)')}><X /></button>
+          <button className="primary-button save-image-button" onClick={() => saveEdits()} disabled={saving || actionBusy || geometryActive || !source} aria-label={t('Guardar edición')} title={geometryActive ? t('Aplica o cancela el ajuste antes de guardar') : t('Guardar edición (Ctrl+S)')}><Check /></button>
         </div>
       </header>
 
       <main className="editor-layout">
-        <nav className="tool-rail" aria-label="Herramientas de edición">
-          {tools.map((tool) => {
-            const Icon = tool.icon;
-            return <button key={tool.id} title={tool.label} aria-label={tool.label} className={activeTool === tool.id ? 'active' : ''} disabled={actionBusy || saving || !source} onClick={() => chooseTool(tool.id)} aria-current={activeTool === tool.id ? 'page' : undefined}><Icon /></button>;
-          })}
-          <button onClick={undo} disabled={!history.length || saving || actionBusy} aria-label="Deshacer" title="Deshacer"><Undo2 /></button>
-          <button onClick={redo} disabled={!future.length || saving || actionBusy} aria-label="Rehacer" title="Rehacer"><Redo2 /></button>
+        <nav className="tool-rail" aria-label={t('Herramientas de edición')}>
+          {toolGroups.map((group) => <div key={group.id} className="tool-rail-group" role="group" aria-label={group.label}>
+            <span className="tool-rail-heading" aria-hidden="true">{group.label}</span>
+            {tools.filter((tool) => tool.group === group.id && !tool.hidden).map((tool) => {
+              const Icon = tool.icon;
+              const active = activeTool === tool.id || (tool.id === 'crop' && activeTool === 'visualcrop');
+              return <button key={tool.id} title={`${tool.label}: ${tool.description}`} aria-label={tool.label} className={active ? 'active' : ''} disabled={actionBusy || saving || !source} onClick={() => chooseTool(tool.id)} aria-current={active ? 'page' : undefined}><Icon aria-hidden="true" /><span aria-hidden="true">{tool.short}</span></button>;
+            })}
+          </div>)}
+          <div className="tool-rail-group" role="group" aria-label={t('Historial')}>
+            <button onClick={undo} disabled={!history.length || saving || actionBusy} aria-label={t('Deshacer')} title={t('Deshacer (Ctrl+Z)')}><Undo2 aria-hidden="true" /><span aria-hidden="true">{t('Deshacer')}</span></button>
+            <button onClick={redo} disabled={!future.length || saving || actionBusy} aria-label={t('Rehacer')} title={t('Rehacer (Ctrl+Y)')}><Redo2 aria-hidden="true" /><span aria-hidden="true">{t('Rehacer')}</span></button>
+          </div>
         </nav>
 
         {geometryActive ? <GeometryEditor key={activeTool} item={actionItems[0]} tool={activeTool} onApply={applyIndividualResults} onClose={() => { setActionItems([]); setActiveTool('adjust'); }} onBusy={setActionBusy} /> : <>
-        <section className="canvas-workspace" aria-label="Vista previa de la imagen">
+        <section className="canvas-workspace" aria-label={t('Vista previa de la imagen')}>
           <div className="workspace-meta">
             <span><FileImage size={16} /> {workingItem.name}</span>
-            <span>{previewDimensions.width} × {previewDimensions.height} px</span>
+            <span>{previewDimensions.width} × {previewDimensions.height}{' '}{t('px')}</span>
           </div>
-          <div className="process-trail" aria-label="Estado del proceso">
-            <span><small>Origen</small><strong>Imagen abierta</strong></span>
+          <div className="process-trail" aria-label={t('Estado del proceso')}>
+            <span><small>{t('Origen')}</small><strong>{t('Imagen abierta')}</strong></span>
             <i aria-hidden="true">→</i>
-            <span><small>Transformación</small><strong>{tools.find((tool) => tool.id === activeTool)?.label}</strong></span>
+            <span><small>{t('Transformación')}</small><strong>{tools.find((tool) => tool.id === activeTool)?.label}</strong></span>
             <i aria-hidden="true">→</i>
-            <span className={`status-${exportStatus}`}><small>Resultado</small><strong>{exportStatus === 'loading' ? 'Abriendo…' : exportStatus === 'processing' ? 'Procesando…' : exportStatus === 'success' ? 'Descargado' : exportStatus === 'error' ? 'Revisar error' : 'Listo para descargar'}</strong></span>
+            <span className={`status-${exportStatus}`}><small>{t('Resultado')}</small><strong>{exportStatus === 'loading' ? t('Abriendo…') : exportStatus === 'processing' ? t('Procesando…') : exportStatus === 'success' ? t('Descargado') : exportStatus === 'error' ? t('Revisar error') : t('Listo para descargar')}</strong></span>
           </div>
           <div className={`canvas-stage ${activeTool === 'privacy' ? 'privacy-active' : ''}`}>
             <div className="canvas-wrap" onPointerDown={beginPrivacyArea} onPointerMove={updatePrivacyArea} onPointerUp={finishPrivacyArea}>
-              <canvas ref={canvasRef} tabIndex={activeTool === 'privacy' ? 0 : -1} aria-label={activeTool === 'privacy' ? 'Imagen editable. Usa el panel Ocultar para crear y ajustar zonas con el teclado.' : 'Imagen editable'} />
+              <canvas ref={canvasRef} tabIndex={activeTool === 'privacy' ? 0 : -1} aria-label={activeTool === 'privacy' ? t('Imagen editable. Usa el panel Ocultar para crear y ajustar zonas con el teclado.') : t('Imagen editable')} />
               {drawingStyle && <span className="drawing-area" style={drawingStyle} />}
             </div>
           </div>
           {loadError && <p className="workspace-error" role="alert">{loadError}</p>}
-          <div className="file-strip" aria-label="Imágenes abiertas">
-            {items.map((file, index) => <div key={file.id} className={index === activeIndex ? 'active' : ''}><button onClick={() => { if (index !== activeIndex) saveEdits(index); }} disabled={saving || actionBusy || !source} title={index === activeIndex ? file.name : `Guardar y abrir ${file.name}`}><img src={file.thumbnailUrl || file.url} alt="" /><span>{file.name}</span></button><button className="remove-file" onClick={() => removeItem(index)} aria-label={`Cerrar ${file.name}`}><X /></button></div>)}
-            <input ref={addInputRef} className="sr-only" type="file" accept="image/*" multiple onChange={(event) => onAddFiles(Array.from(event.target.files || []))} />
-            <button className="add-file" onClick={() => addInputRef.current?.click()}><Upload size={18} /> Añadir</button>
+          <div className="file-strip" aria-label={t('Imágenes abiertas')}>
+            {items.map((file, index) => <div key={file.id} className={index === activeIndex ? 'active' : ''}><button onClick={() => { if (index !== activeIndex) saveEdits(index); }} disabled={saving || actionBusy || !source} title={index === activeIndex ? file.name : t('Guardar y abrir {name}', { name: file.name })}><img src={file.thumbnailUrl || file.url} alt="" /><span>{file.name}</span></button><button className="remove-file" onClick={() => removeItem(index)} aria-label={t('Cerrar {name}', { name: file.name })}><X /></button></div>)}
+            <input ref={addInputRef} className="sr-only" type="file" accept="image/*,.heic,.heif,.tif,.tiff" multiple onChange={(event) => onAddFiles(Array.from(event.target.files || []))} />
+            <button className="add-file" onClick={() => addInputRef.current?.click()}><Upload size={18} />{' '}{t('Añadir')}</button>
           </div>
         </section>
 
         <aside className="settings-panel">
           <div key={activeTool} className="panel-content">
-            {activeTool === 'annotate' ? <AnnotationsPanel annotations={annotations} selectedId={selectedAnnotationId} onSelect={setSelectedAnnotationId} onChange={updateAnnotations} onAdd={addAnnotation} onDelete={deleteAnnotation} /> : activeTool === 'compress' ? <CompressionPanel items={actionItems} onApply={applyIndividualResults} onClose={() => setActiveTool('adjust')} onBusy={setActionBusy} /> : activeTool === 'rename' ? <RenamePanel items={actionItems} allItems={items} onRename={applyIndividualRename} onClose={() => setActiveTool('adjust')} /> : activeTool === 'canvas' ? <CanvasPanel items={actionItems} onApply={applyIndividualResults} onClose={() => setActiveTool('adjust')} onBusy={setActionBusy} /> : activeTool === 'background' ? <BackgroundPanel items={actionItems} onApply={applyIndividualResults} onClose={() => setActiveTool('adjust')} onBusy={setActionBusy} /> : activeTool === 'trim' ? <TrimPanel items={actionItems} onApply={applyIndividualResults} onClose={() => setActiveTool('adjust')} onBusy={setActionBusy} /> : activeTool === 'workflow' ? <WorkflowPanel allItems={items} items={actionItems} onApply={applyIndividualResults} onClose={() => setActiveTool('adjust')} onBusy={setActionBusy} /> : <ToolPanel {...{ activeTool, settings, setSetting, outputSize, setOutputSize: updateOutputSize, aspectLocked, setAspectLocked, source, privacyAreas, selectedArea, setSelectedArea, addPrivacyArea, updatePrivacyArea: updateSelectedPrivacyArea, deletePrivacyArea, estimatedSize }} />}
+            {settingsPanel}
           </div>
-          {activeTool === 'export' && <button className="primary-button" onClick={exportImage} disabled={!source || saving}>Descargar</button>}
-          <button className="reset-button" disabled={!source || actionBusy || saving} onClick={() => { recordHistory(); setSettings(initialSettings); customSizeRef.current = false; setOutputSize({ width: source.naturalWidth, height: source.naturalHeight }); setPrivacyAreas([]); setAnnotations([]); setSelectedAnnotationId(null); setSelectedArea(0); }}><RotateCcw size={16} /> Restablecer ajustes</button>
-          {item.originalUrl && <button className="reset-button" disabled={!source || actionBusy || saving} onClick={restoreDraftOriginal}><RotateCcw size={16} /> Restaurar original</button>}
+          {activeTool === 'export' && <button className="primary-button" onClick={exportImage} disabled={!source || saving}>{t('Descargar')}</button>}
+          <button className="reset-button" disabled={!source || actionBusy || saving} onClick={() => { recordHistory(); setSettings((current) => ({ ...initialSettings, format: current.format, quality: current.quality })); customSizeRef.current = false; setOutputSize({ width: source.naturalWidth, height: source.naturalHeight }); setPrivacyAreas([]); setAnnotations([]); setSelectedAnnotationId(null); setSelectedArea(0); }}><RotateCcw size={16} />{' '}{t('Restablecer ajustes')}</button>
+          {item.originalUrl && <button className="reset-button" disabled={!source || actionBusy || saving} onClick={restoreDraftOriginal}><RotateCcw size={16} />{' '}{t('Restaurar original')}</button>}
         </aside>
         </>}
       </main>
       <div className="export-feedback" role={exportStatus === 'error' ? 'alert' : 'status'} aria-live="polite">
-        {exportStatus === 'success' && <><Check size={18} /> Imagen descargada. El original sigue intacto.</>}
-        {exportStatus === 'error' && !loadError && <>No se pudo crear la descarga. Prueba otro formato o reduce el tamaño.</>}
+        {exportStatus === 'success' && <><Check size={18} />{' '}{t('Imagen descargada. El original sigue intacto.')}</>}
+        {exportStatus === 'error' && !loadError && <>{t('No se pudo crear la descarga. Prueba otro formato o reduce el tamaño.')}</>}
       </div>
     </dialog>
   );

@@ -9,7 +9,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const problems = [];
 page.on('pageerror', (error) => problems.push(`pageerror: ${error.message}`));
 page.on('console', (message) => { if (message.type() === 'error') problems.push(`console: ${message.text()}`); });
-await page.addInitScript(() => localStorage.setItem('imageinplace-welcome-dismissed', 'true'));
+await page.addInitScript(() => { localStorage.setItem('imageinplace-welcome-dismissed', 'true'); localStorage.setItem('imageinplace-locale', 'es'); });
 await page.goto(process.env.TEST_URL || 'http://127.0.0.1:4180');
 
 const csp = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');

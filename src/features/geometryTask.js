@@ -1,15 +1,16 @@
 import { geometrySize, renderGeometryCanvas } from './geometry.js';
 import { loadImage, saveFormatFor, SAVE_QUALITY } from './imageEngine.js';
 import { canvasToBlob, flattenForFormat } from './background.js';
+import { t } from '../i18n/index.js';
 
 function warpInWorker(imageData, points, size, signal) {
   return new Promise((resolve, reject) => {
     signal?.throwIfAborted();
     const worker = new Worker(new URL('./geometryWorker.js', import.meta.url), { type: 'module' });
     const finish = (cause, pixels) => { signal?.removeEventListener('abort', abort); worker.terminate(); if (cause) reject(cause); else resolve(pixels); };
-    const abort = () => finish(new DOMException('Operación cancelada.', 'AbortError'));
+    const abort = () => finish(new DOMException(t('Operación cancelada.'), 'AbortError'));
     signal?.addEventListener('abort', abort, { once: true });
-    worker.onerror = () => finish(new Error('No se pudo corregir la perspectiva.'));
+    worker.onerror = () => finish(new Error(t('No se pudo corregir la perspectiva.')));
     worker.onmessage = ({ data }) => data.error ? finish(new Error(data.error)) : finish(null, data.pixels);
     try { worker.postMessage({ pixels: imageData.data.buffer, width: imageData.width, height: imageData.height, points, size }, [imageData.data.buffer]); }
     catch (cause) { finish(cause); }

@@ -10,7 +10,7 @@ const page = await context.newPage();
 const errors = [];
 page.on('pageerror', (cause) => errors.push(cause.message));
 page.on('dialog', (dialog) => dialog.accept());
-await page.addInitScript(() => localStorage.setItem('imageinplace-welcome-dismissed', 'true'));
+await page.addInitScript(() => { localStorage.setItem('imageinplace-welcome-dismissed', 'true'); localStorage.setItem('imageinplace-locale', 'es'); });
 const editor = page.locator('.individual-editor');
 const open = () => page.locator('.image-card-edit').first().click();
 const tool = (name) => editor.getByRole('button', { name, exact: true }).click();
@@ -52,7 +52,7 @@ try {
   assert.equal((await fullInfo()).width, 661);
   await page.getByRole('button', { name: 'Restaurar originales seleccionados', exact: true }).click();
   // A crop starts with exact 10% margins; changing a handle with the keyboard updates the output.
-  await open(); await tool('Recorte visual');
+  await open(); await tool('Recortar'); await tool('Recorte visual: arrastrar el marco');
   const handle = editor.getByRole('button', { name: 'Esquina superior izquierda', exact: true });
   await handle.press('ArrowRight');
   assert.equal(await editor.getByLabel('Izquierda (%)').inputValue(), '10.5');
@@ -90,7 +90,7 @@ try {
   assert.equal(await page.locator('.image-thumb img').first().getAttribute('data-source-url'), sourceBefore);
   // Actual pointer input moves the crop frame; touch and mobile keep controls inside the viewport.
   await page.setViewportSize({ width: 390, height: 844 });
-  await open(); await tool('Recorte visual');
+  await open(); await tool('Recortar'); await tool('Recorte visual: arrastrar el marco');
   const move = await editor.getByRole('button', { name: 'Mover recorte', exact: true }).boundingBox();
   await page.mouse.move(move.x + move.width / 2, move.y + move.height / 2); await page.mouse.down();
   await page.mouse.move(move.x + move.width / 2 + 10, move.y + move.height / 2 + 5); await page.mouse.up();

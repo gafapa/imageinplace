@@ -12,6 +12,7 @@ page.on('pageerror', (error) => errors.push(error.message));
 page.on('request', (request) => requests.push({ url: request.url(), method: request.method() }));
 await page.addInitScript(() => {
   localStorage.setItem('imageinplace-welcome-dismissed', 'true');
+  localStorage.setItem('imageinplace-locale', 'es');
   const NativeWorker = window.Worker;
   window.workerStarts = 0;
   window.workerStops = 0;
@@ -42,7 +43,7 @@ try {
     { name: 'huge.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="11000" height="10"/>') },
   ]);
   await images.first().waitFor();
-  await page.getByRole('status').filter({ hasText: '1 imágenes abiertas.' }).waitFor();
+  await page.getByRole('status').filter({ hasText: '1 imagen abierta.' }).waitFor();
   assert.equal(await images.count(), 1);
   assert.match(await page.locator('.gallery-notice').innerText(), /broken.png.*huge.svg/);
   assert.equal(await wouldWarn(), true);

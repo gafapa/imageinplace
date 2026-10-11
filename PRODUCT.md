@@ -30,7 +30,7 @@ Typical tasks include preparing images for presentations and worksheets, resizin
 
 - All image processing must run in the browser; there is no backend.
 - No account is required.
-- The interface language for the initial product is Spanish.
+- The interface is available in Spanish (source language), Galician, Catalan, Basque and English.
 - The interface must be simple, modern, responsive, and usable with keyboard and touch.
 - Imported images are presented in a selectable gallery before editing.
 - Users can apply one set of operations to multiple selected images and download the results as a ZIP archive.

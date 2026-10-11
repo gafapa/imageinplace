@@ -17,7 +17,7 @@ async function assertNoGlobalScroll(page, label) {
 }
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
+const page = await browser.newPage({ locale: 'es-ES', viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
 page.on('dialog', (dialog) => dialog.accept());
 await page.goto(testUrl, { waitUntil: 'networkidle' });
 await page.screenshot({ path: `${outputDirectory}/welcome-desktop.png`, fullPage: true });

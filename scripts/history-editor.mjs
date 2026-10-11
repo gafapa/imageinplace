@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
-await context.addInitScript(() => localStorage.setItem('imageinplace-welcome-dismissed', 'true'));
+await context.addInitScript(() => { localStorage.setItem('imageinplace-welcome-dismissed', 'true'); localStorage.setItem('imageinplace-locale', 'es'); });
 const page = await context.newPage();
 const image = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><rect width="320" height="180" fill="#44aaff"/><circle cx="160" cy="90" r="55" fill="#ffcc33"/></svg>');
 const report = {};

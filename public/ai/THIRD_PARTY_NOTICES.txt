@@ -1,0 +1,42 @@
+Image in Place - third-party components used by the on-device tools
+====================================================================
+
+All of these run locally in the browser. They are downloaded from this site
+only when the corresponding tool is first used.
+
+models/u2netp.onnx
+  U^2-Net (small, "u2netp") salient object segmentation, used by
+  "Quitar fondo > Automático".
+  Copyright (c) Xuebin Qin et al. Apache License 2.0.
+  https://github.com/xuebinqin/U-2-Net
+  ONNX export distributed by rembg (MIT): https://github.com/danielgatis/rembg
+  SHA-256 309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8
+
+models/ultraface-rfb-640.onnx
+  Ultra-Light-Fast-Generic-Face-Detector-1MB (version-RFB-640), used by
+  "Ocultar > Detectar caras".
+  Copyright (c) 2019 Linzaer. MIT License.
+  https://github.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB
+  ONNX file from the ONNX Model Zoo: https://github.com/onnx/models
+  SHA-256 8f4c659275977e7a3bfbfa339a9c769ad793df50f9c0baa8c14b11baa1646430
+
+ONNX Runtime Web (assets/ort-wasm-*.wasm and the AI worker script).
+  Copyright (c) Microsoft Corporation. MIT License.
+  https://github.com/microsoft/onnxruntime
+
+vendor/tesseract/
+  Tesseract.js and tesseract.js-core (Apache License 2.0),
+  https://github.com/naptha/tesseract.js
+  Tesseract OCR engine and trained data (Apache License 2.0),
+  https://github.com/tesseract-ocr/tesseract
+  https://github.com/tesseract-ocr/tessdata
+
+vendor/heif/
+  libheif, compiled to WebAssembly by libheif-js.
+  libheif: Copyright (c) struktur AG. GNU Lesser General Public License v3.0.
+  https://github.com/strukturag/libheif
+  libheif-js: https://github.com/catdad-experiments/libheif-js
+  The library is shipped unmodified as a separate file
+  (libheif-bundle.js, with its WebAssembly embedded), so it can be replaced
+  with a compatible build. Its complete
+  source code is available from the links above.

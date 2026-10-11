@@ -1,11 +1,12 @@
 import { validateDimensions } from './imageLimits.js';
+import { t } from '../i18n/index.js';
 
 export const defaultCorners = () => [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }];
 export const defaultCrop = () => ({ x: 0.1, y: 0.1, width: 0.8, height: 0.8 });
 const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
 
 export function rotationSize(width, height, angle) {
-  if (!Number.isFinite(angle) || Math.abs(angle) > 15) throw new Error('El ángulo debe estar entre −15° y 15°.');
+  if (!Number.isFinite(angle) || Math.abs(angle) > 15) throw new Error(t('El ángulo debe estar entre −15° y 15°.'));
   const radians = angle * Math.PI / 180;
   const size = { width: Math.ceil(Math.abs(width * Math.cos(radians)) + Math.abs(height * Math.sin(radians)) - 1e-8),
     height: Math.ceil(Math.abs(width * Math.sin(radians)) + Math.abs(height * Math.cos(radians)) - 1e-8) };
@@ -16,19 +17,19 @@ export function rotationSize(width, height, angle) {
 export function cropBounds(width, height, crop) {
   const values = [crop.x, crop.y, crop.width, crop.height];
   if (!values.every(Number.isFinite) || crop.x < 0 || crop.y < 0 || crop.width <= 0 || crop.height <= 0
-    || crop.x + crop.width > 1 + 1e-8 || crop.y + crop.height > 1 + 1e-8) throw new Error('El recorte debe quedar dentro de la imagen.');
+    || crop.x + crop.width > 1 + 1e-8 || crop.y + crop.height > 1 + 1e-8) throw new Error(t('El recorte debe quedar dentro de la imagen.'));
   const x = Math.round(crop.x * width); const y = Math.round(crop.y * height);
   const right = Math.min(width, Math.round((crop.x + crop.width) * width));
   const bottom = Math.min(height, Math.round((crop.y + crop.height) * height));
-  if (right <= x || bottom <= y) throw new Error('El recorte debe contener al menos un píxel.');
+  if (right <= x || bottom <= y) throw new Error(t('El recorte debe contener al menos un píxel.'));
   return { x, y, width: right - x, height: bottom - y };
 }
 
 export function validateCorners(points) {
-  if (!Array.isArray(points) || points.length !== 4 || points.some((p) => !p || !Number.isFinite(p.x) || !Number.isFinite(p.y) || p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1)) throw new Error('Las cuatro esquinas deben quedar dentro de la imagen.');
+  if (!Array.isArray(points) || points.length !== 4 || points.some((p) => !p || !Number.isFinite(p.x) || !Number.isFinite(p.y) || p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1)) throw new Error(t('Las cuatro esquinas deben quedar dentro de la imagen.'));
   for (let i = 0; i < 4; i += 1) {
     const a = points[i]; const b = points[(i + 1) % 4]; const c = points[(i + 2) % 4];
-    if ((b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x) <= 0.00001) throw new Error('Las esquinas deben formar un cuadrilátero sin cruces: superior izquierda, superior derecha, inferior derecha e inferior izquierda.');
+    if ((b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x) <= 0.00001) throw new Error(t('Las esquinas deben formar un cuadrilátero sin cruces: superior izquierda, superior derecha, inferior derecha e inferior izquierda.'));
   }
 }
 
@@ -50,7 +51,7 @@ export function squareToQuad(points) {
   let g = 0; let h = 0;
   if (Math.abs(dx3) + Math.abs(dy3) > 1e-10) {
     const denominator = dx1 * dy2 - dx2 * dy1;
-    if (Math.abs(denominator) < 1e-12) throw new Error('No se puede corregir esta selección. Separa las esquinas.');
+    if (Math.abs(denominator) < 1e-12) throw new Error(t('No se puede corregir esta selección. Separa las esquinas.'));
     g = (dx3 * dy2 - dx2 * dy3) / denominator;
     h = (dx1 * dy3 - dx3 * dy1) / denominator;
   }
@@ -71,7 +72,7 @@ export function warpPerspective(source, points, size) {
   const matrix = squareToQuad(points);
   const output = new Uint8ClampedArray(size.width * size.height * 4);
   const pixels = source.data;
-  if (pixels.length !== source.width * source.height * 4) throw new Error('Datos de imagen incompletos.');
+  if (pixels.length !== source.width * source.height * 4) throw new Error(t('Datos de imagen incompletos.'));
   for (let y = 0; y < size.height; y += 1) for (let x = 0; x < size.width; x += 1) {
     const u = (x + 0.5) / size.width; const v = (y + 0.5) / size.height;
     const denominator = matrix[6] * u + matrix[7] * v + 1;

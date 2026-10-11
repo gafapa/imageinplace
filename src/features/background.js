@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 const MAX_COLOR_DISTANCE = Math.sqrt(3 * 255 * 255);
 const TRANSPARENT_ALPHA = 16;
 const MAX_BORDER_SAMPLES = 8000;
@@ -7,13 +8,13 @@ export async function canvasFromUrl(url, maxSide = Infinity, maxPixels = 40_000_
   const image = await new Promise((resolve, reject) => {
     const element = new Image();
     element.onload = () => resolve(element);
-    element.onerror = () => reject(new Error('No se pudo leer la imagen.'));
+    element.onerror = () => reject(new Error(t('No se pudo leer la imagen.')));
     element.src = url;
   });
   const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
   const width = Math.max(1, Math.round(image.naturalWidth * scale));
   const height = Math.max(1, Math.round(image.naturalHeight * scale));
-  if (width * height > maxPixels) throw new Error('La imagen es demasiado grande para procesarla en el navegador.');
+  if (width * height > maxPixels) throw new Error(t('La imagen es demasiado grande para procesarla en el navegador.'));
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;

@@ -26,9 +26,28 @@
     <meta name="twitter:title" content="Image in Place — Tus imágenes, listas" />
     <meta name="twitter:description" content="Edita, adapta y protege tus imágenes directamente en el navegador, sin subir archivos." />
     <meta name="twitter:image" content="https://imageinplace.com/og-image.png" />
+    <script type="application/ld+json">
+      {"@context": "https://schema.org", "@type": "WebApplication", "name": "Image in Place", "url": "https://imageinplace.com/", "applicationCategory": "MultimediaApplication", "operatingSystem": "Any", "browserRequirements": "Requires JavaScript", "inLanguage": "es", "isAccessibleForFree": true, "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}, "description": "Editor de imágenes privado que funciona en el navegador: comprime, redimensiona, recorta, anota y oculta datos sin subir archivos."}
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Readable without JavaScript and by search engines; React replaces it on start. -->
+    <div id="root">
+      <main style="max-width: 720px; margin: 0 auto; padding: 32px 16px; font-family: system-ui, sans-serif; color: #20242c; line-height: 1.6;">
+        <h1>Image in Place: editor de imágenes privado en el navegador</h1>
+        <p>Prepara imágenes para clase, presentaciones, Moodle o el correo sin instalar nada ni crear una cuenta. Todo se procesa en tu dispositivo: las imágenes nunca se suben a ningún servidor.</p>
+        <h2>Qué puedes hacer</h2>
+        <ul>
+          <li>Reducir el peso de las fotos a un tamaño objetivo y convertir entre JPG, PNG y WebP.</li>
+          <li>Cambiar el tamaño, recortar, girar, enderezar documentos y corregir la perspectiva.</li>
+          <li>Ocultar caras, nombres y datos personales antes de compartir.</li>
+          <li>Añadir flechas, texto, números y marcas de agua.</li>
+          <li>Quitar fondos uniformes y recortar los márgenes vacíos.</li>
+          <li>Crear láminas A4 en PDF con varias imágenes y procesar muchas imágenes a la vez.</li>
+        </ul>
+        <p>Image in Place necesita JavaScript activado para funcionar.</p>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
