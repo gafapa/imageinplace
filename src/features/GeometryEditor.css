@@ -1,0 +1,26 @@
+.geometry-workspace { min-width: 0; }
+.individual-editor .geometry-workspace { grid-template-rows: 38px minmax(0, 1fr) auto; }
+.geometry-stage { display: flex; align-items: center; justify-content: center; min-height: 0; padding: 30px; overflow: auto; }
+.geometry-wrap { position: relative; max-width: 100%; flex: 0 1 auto; touch-action: none; }
+.geometry-source { display: block; max-width: 100%; max-height: calc(100dvh - 235px); width: auto; height: auto; background: var(--transparency-grid); }
+.geometry-grid::after { content: ''; position: absolute; inset: 0; pointer-events: none; background-image: linear-gradient(#2563eb55 1px, transparent 1px), linear-gradient(90deg, #2563eb55 1px, transparent 1px); background-size: 10% 10%; border: 1px solid #2563eb; }
+.geometry-outline { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.geometry-outline polygon { fill: #2563eb11; stroke: #2563eb; stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.geometry-crop-frame { position: absolute; border: 2px solid #2563eb; pointer-events: none; background: #2563eb11; }
+.geometry-handle, .geometry-move { position: absolute; transform: translate(-50%, -50%); display: grid; place-items: center; min-width: 44px; min-height: 44px; border: 2px solid #2563eb; border-radius: 50%; background: white; color: #1d4ed8; font-weight: 700; touch-action: none; }
+.geometry-handle.selected { background: #2563eb; color: white; }
+.geometry-move { border-radius: 8px; font-size: 20px; cursor: move; }
+.geometry-instructions { margin: 0; padding: 8px 12px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.geometry-controls fieldset { padding: 0; border: 0; margin: 16px 0; min-width: 0; }
+.geometry-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+.geometry-fields .text-field { min-width: 0; }
+.geometry-result { margin: 18px 0; padding: 12px; background: #f1f5f9; border: 1px solid var(--line); border-radius: 8px; text-align: center; }
+.geometry-result canvas { display: block; margin: auto; max-width: 100%; max-height: 160px; object-fit: contain; background: var(--transparency-grid); }
+.geometry-result canvas[hidden] { display: none; }
+.geometry-result figcaption { margin-top: 8px; font-size: 12px; color: var(--muted); }
+.individual-editor .geometry-controls .toolbar-button { min-height: 44px; width: auto; padding: 0 12px; font-size: 12px; }
+@media (max-width: 780px) {
+  .geometry-stage { padding: 28px; }
+  .geometry-source { max-height: 320px; }
+  .individual-editor .geometry-workspace { min-height: 380px; }
+}

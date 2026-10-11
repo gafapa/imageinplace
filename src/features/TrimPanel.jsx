@@ -1,6 +1,8 @@
+import { processPixels } from './pixelTask';
+import useBatchTask, { checkCancelled } from './useBatchTask';
 import React, { useEffect, useState } from 'react';
 import { Scan, X } from 'lucide-react';
-import { canvasFromUrl, canvasToBlob, cropCanvas, findContentBounds, flattenForFormat } from './background';
+import { canvasFromUrl, cropCanvas, findContentBounds } from './background';
 import { RangeField } from './BackgroundPanel';
 import { saveFormatFor, SAVE_QUALITY } from './imageEngine';
 import './BackgroundPanel.css';
@@ -26,6 +28,7 @@ function trim(canvas, { tolerance, padding }, scale = 1) {
 }
 
 export default function TrimPanel({ items = [], onApply, onClose, onBusy, onPreview }) {
+  const task = useBatchTask();
   const [options, setOptions] = useState(DEFAULTS);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -35,7 +38,9 @@ export default function TrimPanel({ items = [], onApply, onClose, onBusy, onPrev
   useEffect(() => () => { onBusy?.(false); onPreview?.({}); }, [onBusy, onPreview]);
 
   useEffect(() => {
+    if (busy) return;
     let cancelled = false;
+    const previewController = new AbortController();
     const timer = setTimeout(async () => {
       try {
         const thumbnails = {};
@@ -43,45 +48,48 @@ export default function TrimPanel({ items = [], onApply, onClose, onBusy, onPrev
         for (const [index, item] of items.entries()) {
           const source = await canvasFromUrl(item.url, PREVIEW_SIDE);
           if (cancelled) return;
-          const naturalWidth = await naturalWidthOf(item.url);
+          const naturalWidth = item.width || await naturalWidthOf(item.url);
           const result = trim(source, options, source.width / naturalWidth);
           thumbnails[item.id] = result.canvas.toDataURL('image/png');
           // Only the first image is measured at full size, for an exact caption.
           if (index === 0) {
-            const full = trim(await canvasFromUrl(item.url), options);
-            first = { url: thumbnails[item.id], status: full.status, before: full.before, after: [full.canvas.width, full.canvas.height] };
+            const full = await processPixels(item.url, 'trim', options, saveFormatFor(item.type), SAVE_QUALITY, previewController.signal);
+            first = { url: thumbnails[item.id], status: full.status, before: full.before, after: full.after };
           }
         }
         if (!cancelled) { onPreview?.(thumbnails); setPreview(first); }
       } catch (cause) { if (!cancelled) { onPreview?.({}); setPreview(null); setError(cause.message); } }
     }, 180);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [items, options, onPreview]);
+    return () => { cancelled = true; previewController.abort(); clearTimeout(timer); };
+  }, [items, options, onPreview, busy]);
 
   const setOption = (key, value) => { setOptions((current) => ({ ...current, [key]: value })); setError(''); setNotice(''); };
 
   const apply = async () => {
     setBusy(true); setError(''); setNotice(''); onBusy?.(true);
+    const signal = task.start();
     try {
       const results = [];
-      let empty = 0; let unchanged = 0;
+      let empty = 0; let unchanged = 0; let taskIndex = 1;
       for (const item of items) {
-        const result = trim(await canvasFromUrl(item.url), options);
+        await checkCancelled(signal);
+        const result = await processPixels(item.url, 'trim', options, saveFormatFor(item.type), SAVE_QUALITY, signal);
+        task.advance(taskIndex++);
         if (result.status === 'empty') { empty += 1; continue; }
         if (result.status === 'unchanged') { unchanged += 1; continue; }
-        const format = saveFormatFor(item.type);
-        results.push({ item, blob: await canvasToBlob(flattenForFormat(result.canvas, format), format, SAVE_QUALITY) });
+        results.push({ item, blob: result.blob });
       }
       if (!results.length) {
         setError(empty === items.length ? 'No se encontró contenido: la imagen parece vacía.' : 'No hay bordes vacíos que recortar. Sube la tolerancia si el fondo no es del todo uniforme.');
         return;
       }
-      onApply?.(results);
+      await checkCancelled(signal);
+      await onApply?.(results, signal);
       const skipped = empty + unchanged;
       if (skipped) setNotice(`Recortadas ${results.length}. ${skipped} ${skipped === 1 ? 'imagen no tenía' : 'imágenes no tenían'} bordes que quitar.`);
       else onClose?.();
     } catch (cause) {
-      setError(cause?.message || 'No se pudo recortar al contenido.');
+      setError(cause?.name === 'AbortError' ? 'Operación cancelada. No se han aplicado cambios.' : cause?.message || 'No se pudo recortar al contenido.');
     } finally {
       setBusy(false); onBusy?.(false);
     }
@@ -100,6 +108,6 @@ export default function TrimPanel({ items = [], onApply, onClose, onBusy, onPrev
     </fieldset>
     {notice && <p className="batch-hint" role="status">{notice}</p>}
     {error && <p className="error-message" role="alert">{error}</p>}
-    <div className="batch-footer"><span role="status">{busy ? 'Procesando…' : `${items.length} ${items.length === 1 ? 'imagen' : 'imágenes'}`}</span><button className="toolbar-button" type="button" onClick={onClose} disabled={busy}>Cancelar</button><button className="primary-button" type="button" onClick={apply} disabled={busy || !items.length}>{busy ? 'Procesando…' : 'Recortar'}</button></div>
+    <div className="batch-footer"><span role="status">{busy ? `Procesando ${task.progress}/${items.length}…` : `${items.length} ${items.length === 1 ? 'imagen' : 'imágenes'}`}</span><button className="toolbar-button" type="button" onClick={busy ? task.cancel : onClose}>Cancelar</button><button className="primary-button" type="button" onClick={apply} disabled={busy || !items.length}>{busy ? 'Procesando…' : 'Recortar'}</button></div>
   </section>;
 }

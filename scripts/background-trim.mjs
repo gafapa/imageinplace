@@ -28,7 +28,7 @@ await page.locator('.image-card-select').nth(1).waitFor();
 const action = (name) => page.getByRole('button', { name, exact: true }).click();
 const sidebar = page.locator('.gallery-side-panel');
 const thumbInfo = (index) => page.locator('.image-thumb img').nth(index).evaluate(async (image) => {
-  const blob = await (await fetch(image.src)).blob();
+  const blob = await (await fetch(image.dataset.sourceUrl || image.src)).blob();
   const bitmap = await createImageBitmap(blob);
   const canvas = document.createElement('canvas'); canvas.width = bitmap.width; canvas.height = bitmap.height;
   const context = canvas.getContext('2d'); context.drawImage(bitmap, 0, 0);

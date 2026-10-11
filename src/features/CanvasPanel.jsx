@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Grid3X3, X } from 'lucide-react';
+import useBatchTask, { checkCancelled } from './useBatchTask';
 import { loadImage } from './imageEngine';
 import { CANVAS_ALIGNMENTS, renderCanvasLayout, validateCanvasSize } from './canvasLayout';
 
@@ -9,6 +10,7 @@ const MAX_PREVIEW = 320;
 const readNumber = (value) => Number.isFinite(Number(value)) ? Math.round(Number(value)) : 0;
 
 export default function CanvasPanel({ items = [], onApply, onClose, onBusy, onPreview }) {
+  const task = useBatchTask();
   const [options, setOptions] = useState(DEFAULTS);
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState('');
@@ -47,12 +49,16 @@ export default function CanvasPanel({ items = [], onApply, onClose, onBusy, onPr
     if (!items.length || width < 1 || height < 1) { setError('Indica un ancho y un alto positivos.'); return; }
     setStatus('processing'); setError(''); setApplied(false); onBusy?.(true);
     const results = [];
+    const signal = task.start();
     try {
       for (const item of items) {
+        await checkCancelled(signal);
         const source = await loadImage(item.url);
         const canvas = renderCanvasLayout(source, { ...options, width, height });
         const blob = await new Promise((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error('No se pudo crear el PNG.')), 'image/png'));
+        signal.throwIfAborted();
         results.push({ item, blob });
+        task.advance(results.length);
         if (onPreview) {
           const ratio = Math.min(MAX_PREVIEW / canvas.width, MAX_PREVIEW / canvas.height, 1);
           const thumb = document.createElement('canvas'); thumb.width = Math.max(1, Math.round(canvas.width * ratio)); thumb.height = Math.max(1, Math.round(canvas.height * ratio));
@@ -60,9 +66,9 @@ export default function CanvasPanel({ items = [], onApply, onClose, onBusy, onPr
           onPreview({ [item.id]: thumb.toDataURL('image/png') }); setPreview({ id: item.id, url: thumb.toDataURL('image/png') });
         }
       }
-      onBusy?.(false); setStatus('ready'); onApply?.(results); setApplied(true); close();
+      await checkCancelled(signal); await onApply?.(results, signal); onBusy?.(false); setStatus('ready'); setApplied(true); close();
     } catch (cause) {
-      onBusy?.(false); onPreview?.({}); setPreview(null); setStatus('error'); setError(cause?.message || 'No se pudo preparar el lienzo.');
+      onBusy?.(false); onPreview?.({}); setPreview(null); setStatus('error'); setError(cause.name === 'AbortError' ? 'Operación cancelada. No se han aplicado cambios.' : cause?.message || 'No se pudo preparar el lienzo.');
     }
   };
 
@@ -76,6 +82,6 @@ export default function CanvasPanel({ items = [], onApply, onClose, onBusy, onPr
     <p className="batch-hint">Salida: {dimensions} · {items.length} {items.length === 1 ? 'imagen' : 'imágenes'}</p>
     {preview && <img src={preview.url} alt="Vista previa del lienzo" style={{ maxWidth: '100%', maxHeight: 180, objectFit: 'contain' }} />}
     <div className="batch-footer"><button className="primary-button" type="button" onClick={process} disabled={status === 'processing' || applied}>{status === 'processing' ? 'Creando…' : applied ? 'Aplicado' : 'Crear lienzo'}</button>{applied && <span role="status"><Check size={15} /> Aplicado</span>}</div>
-    {error && <p className="error-message" role="alert">{error}</p>}
+    {status === 'processing' && <div className="batch-footer"><span role="status">Procesando {task.progress}/{items.length}…</span><button className="toolbar-button" onClick={task.cancel}>Cancelar</button></div>}{error && <p className="error-message" role="alert">{error}</p>}
   </section>;
 }

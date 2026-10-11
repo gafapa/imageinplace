@@ -1,6 +1,7 @@
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 
+const testUrl = process.env.TEST_URL || 'http://127.0.0.1:4173';
 const outputDirectory = '.impeccable/review';
 await mkdir(outputDirectory, { recursive: true });
 
@@ -17,7 +18,8 @@ async function assertNoGlobalScroll(page, label) {
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
-await page.goto('http://127.0.0.1:4173', { waitUntil: 'networkidle' });
+page.on('dialog', (dialog) => dialog.accept());
+await page.goto(testUrl, { waitUntil: 'networkidle' });
 await page.screenshot({ path: `${outputDirectory}/welcome-desktop.png`, fullPage: true });
 await page.getByRole('button', { name: 'Empezar' }).click();
 await assertNoGlobalScroll(page, 'Desktop home');
@@ -63,9 +65,11 @@ await page.getByLabel('Lado más largo (px)').fill('600');
 await page.screenshot({ path: `${outputDirectory}/batch-desktop.png`, fullPage: true });
 await page.getByRole('button', { name: 'Aplicar', exact: true }).click();
 await page.locator('.batch-panel').waitFor({ state: 'detached' });
-await page.waitForFunction(() => {
-  const images = [...document.querySelectorAll('.image-thumb img')];
-  return images[0]?.naturalWidth === 600 && images[0]?.naturalHeight === 400 && images[1]?.naturalWidth === 400 && images[1]?.naturalHeight === 600;
+await page.waitForFunction(async () => {
+  const images = await Promise.all([...document.querySelectorAll('.image-thumb img')].map((thumbnail) => new Promise((resolve) => {
+    const image = new Image(); image.onload = () => resolve([image.naturalWidth, image.naturalHeight]); image.src = thumbnail.dataset.sourceUrl;
+  })));
+  return images[0]?.[0] === 600 && images[0]?.[1] === 400 && images[1]?.[0] === 400 && images[1]?.[1] === 600;
 });
 await page.getByRole('button', { name: 'Recortar imágenes seleccionadas', exact: true }).click();
 await page.locator('.batch-panel').getByRole('button', { name: 'Cuadrado', exact: true }).click();
@@ -78,19 +82,19 @@ const batchDownloadPromise = page.waitForEvent('download');
 await page.locator('.batch-panel').getByRole('button', { name: 'Descargar', exact: true }).click();
 const batchDownload = await batchDownloadPromise;
 if (batchDownload.suggestedFilename() !== 'imageinplace-2-imagenes.zip') throw new Error('Unexpected batch download filename');
-await page.getByRole('button', { name: 'Editar sample-classroom-image.svg' }).click();
+await page.getByRole('button', { name: 'Editar sample-classroom-image.png' }).click();
 await page.locator('.canvas-wrap canvas').waitFor({ state: 'visible' });
 await page.getByRole('button', { name: 'Recortar', exact: true }).click();
 await page.getByRole('button', { name: 'Diapositiva', exact: true }).click();
 await page.waitForFunction(() => { const canvas = document.querySelector('.canvas-wrap canvas'); return canvas.width === 400 && canvas.height === 225; });
 await page.getByRole('button', { name: 'Imagen siguiente', exact: true }).click();
-await page.waitForFunction(() => document.querySelector('#individual-title')?.textContent === 'second-classroom-image.svg');
+await page.waitForFunction(() => document.querySelector('#individual-title')?.textContent === 'second-classroom-image.png');
 await page.screenshot({ path: `${outputDirectory}/editor-desktop.png`, fullPage: true });
 await page.getByRole('button', { name: 'Cancelar edición', exact: true }).click();
 if (await page.locator('.image-card-select[aria-pressed="true"]').count() !== 2) throw new Error('Individual editor changed gallery selection');
 
 await page.setViewportSize({ width: 390, height: 844 });
-await page.goto('http://127.0.0.1:4173', { waitUntil: 'networkidle' });
+await page.goto(testUrl, { waitUntil: 'networkidle' });
 await page.getByRole('button', { name: 'Empezar' }).click();
 await assertNoGlobalScroll(page, 'Mobile home');
 await page.screenshot({ path: `${outputDirectory}/mobile.png`, fullPage: true });
@@ -110,8 +114,8 @@ await assertNoGlobalScroll(page, 'Mobile batch panel');
 await page.screenshot({ path: `${outputDirectory}/batch-mobile.png`, fullPage: true });
 await page.getByRole('button', { name: 'Aplicar', exact: true }).click();
 await page.locator('.batch-panel').waitFor({ state: 'detached' });
-await page.waitForFunction(() => document.querySelector('.image-thumb img').naturalWidth === 800);
-await page.getByRole('button', { name: 'Editar sample-classroom-image.svg' }).click();
+await page.waitForFunction(async () => { const image = new Image(); const loaded = new Promise((resolve) => { image.onload = () => resolve(image.naturalWidth === 800); }); image.src = document.querySelector('.image-thumb img').dataset.sourceUrl; return loaded; });
+await page.getByRole('button', { name: 'Editar sample-classroom-image.png' }).click();
 await page.locator('.canvas-wrap canvas').waitFor({ state: 'visible' });
 await assertNoGlobalScroll(page, 'Mobile editor');
 await page.getByRole('button', { name: 'Ocultar', exact: true }).click();

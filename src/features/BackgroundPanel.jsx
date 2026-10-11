@@ -1,6 +1,8 @@
+import { processPixels } from './pixelTask';
+import useBatchTask, { checkCancelled } from './useBatchTask';
 import React, { useEffect, useState } from 'react';
 import { Eraser, X } from 'lucide-react';
-import { canvasFromUrl, canvasToBlob, cropCanvas, findContentBounds, removeBackground } from './background';
+import { canvasFromUrl, cropCanvas, findContentBounds, removeBackground } from './background';
 import './BackgroundPanel.css';
 
 const PREVIEW_SIDE = 320;
@@ -27,6 +29,7 @@ export function RangeField({ label, value, min, max, unit = '%', onChange, disab
 }
 
 export default function BackgroundPanel({ items = [], onApply, onClose, onBusy, onPreview }) {
+  const task = useBatchTask();
   const [options, setOptions] = useState(DEFAULTS);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -58,14 +61,18 @@ export default function BackgroundPanel({ items = [], onApply, onClose, onBusy, 
 
   const apply = async () => {
     setBusy(true); setError(''); setNotice(''); onBusy?.(true);
+    const signal = task.start();
     try {
       const results = [];
       let skipped = 0;
+      let taskIndex = 1;
       for (const item of items) {
-        const result = process(await canvasFromUrl(item.url), options);
+        await checkCancelled(signal);
+        const result = await processPixels(item.url, 'background', options, 'image/png', undefined, signal);
+        task.advance(taskIndex++);
         // Nothing removed means no uniform background touching the edges: leave the image untouched.
         if (result.removedShare === 0) { skipped += 1; continue; }
-        results.push({ item, blob: await canvasToBlob(result.canvas, 'image/png') });
+        results.push({ item, blob: result.blob });
       }
       if (!results.length) {
         setError(items.length === 1
@@ -73,11 +80,12 @@ export default function BackgroundPanel({ items = [], onApply, onClose, onBusy, 
           : 'Ninguna imagen tiene un fondo uniforme en los bordes. Sube la tolerancia o activa «Quitar también zonas interiores».');
         return;
       }
-      onApply?.(results);
+      await checkCancelled(signal);
+      await onApply?.(results, signal);
       if (skipped) setNotice(`Fondo quitado en ${results.length} ${results.length === 1 ? 'imagen' : 'imágenes'}. ${skipped} sin fondo uniforme quedaron igual.`);
       else onClose?.();
     } catch (cause) {
-      setError(cause?.message || 'No se pudo quitar el fondo.');
+      setError(cause?.name === 'AbortError' ? 'Operación cancelada. No se han aplicado cambios.' : cause?.message || 'No se pudo quitar el fondo.');
     } finally {
       setBusy(false); onBusy?.(false);
     }
@@ -103,6 +111,6 @@ export default function BackgroundPanel({ items = [], onApply, onClose, onBusy, 
     <p className="batch-hint">Para fotos con fondos complejos sube la tolerancia poco a poco y revisa la vista previa.</p>
     {notice && <p className="batch-hint" role="status">{notice}</p>}
     {error && <p className="error-message" role="alert">{error}</p>}
-    <div className="batch-footer"><span role="status">{busy ? 'Procesando…' : `${items.length} ${items.length === 1 ? 'imagen' : 'imágenes'}`}</span><button className="toolbar-button" type="button" onClick={onClose} disabled={busy}>Cancelar</button><button className="primary-button" type="button" onClick={apply} disabled={busy || !items.length}>{busy ? 'Procesando…' : 'Quitar fondo'}</button></div>
+    <div className="batch-footer"><span role="status">{busy ? `Procesando ${task.progress}/${items.length}…` : `${items.length} ${items.length === 1 ? 'imagen' : 'imágenes'}`}</span><button className="toolbar-button" type="button" onClick={busy ? task.cancel : onClose}>Cancelar</button><button className="primary-button" type="button" onClick={apply} disabled={busy || !items.length}>{busy ? 'Procesando…' : 'Quitar fondo'}</button></div>
   </section>;
 }

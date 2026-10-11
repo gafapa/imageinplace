@@ -1,3 +1,5 @@
+import { validateDimensions } from './imageLimits.js';
+
 export const initialSettings = {
   brightness: 100,
   contrast: 100,
@@ -85,6 +87,7 @@ export function renderImage(source, canvas, settings, outputSize, privacyAreas) 
   const outputScale = outputSize.width && outputSize.height ? Math.min(outputSize.width / crop.sw, outputSize.height / crop.sh) : 1;
   const baseWidth = Math.max(1, Math.round(crop.sw * outputScale));
   const baseHeight = Math.max(1, Math.round(crop.sh * outputScale));
+  validateDimensions(baseWidth, baseHeight);
   canvas.width = quarterTurn ? baseHeight : baseWidth;
   canvas.height = quarterTurn ? baseWidth : baseHeight;
 

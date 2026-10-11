@@ -35,7 +35,7 @@ await page.getByRole('button', { name: 'Aplicar', exact: true }).click();
 await page.waitForFunction(() => !document.querySelector('.batch-panel'));
 const cardText = await page.locator('.image-card-select').first().innerText();
 assert.match(cardText, /foto\.jpg/);
-const savedType = await page.locator('.image-thumb img').first().evaluate(async (image) => (await (await fetch(image.src)).blob()).type);
+const savedType = await page.locator('.image-thumb img').first().evaluate(async (image) => (await (await fetch(image.dataset.sourceUrl || image.src)).blob()).type);
 assert.equal(savedType, 'image/jpeg', 'Batch apply must keep JPEG');
 
 // Editor: solid fill hides the area completely and saving keeps JPEG.
@@ -47,7 +47,7 @@ const center = await page.locator('.editor-shell canvas').evaluate((canvas) => A
 assert.deepEqual(center, [0, 0, 0, 255], 'Fill mode must paint the area solid');
 await page.getByRole('button', { name: 'Guardar edición', exact: true }).click();
 await page.waitForFunction(() => !document.querySelector('.editor-shell'));
-const editedType = await page.locator('.image-thumb img').first().evaluate(async (image) => (await (await fetch(image.src)).blob()).type);
+const editedType = await page.locator('.image-thumb img').first().evaluate(async (image) => (await (await fetch(image.dataset.sourceUrl || image.src)).blob()).type);
 assert.equal(editedType, 'image/jpeg', 'Editor save must keep JPEG');
 
 // Titled A4 PDF is generated with pdf-lib loaded on demand.

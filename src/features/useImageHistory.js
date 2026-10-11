@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 const MAX_HISTORY = 20;
+const MAX_HISTORY_BYTES = 256 * 1024 * 1024;
+
+export function retainedBytes(snapshots) {
+  const sizes = new Map();
+  for (const snapshot of snapshots) for (const item of snapshot) {
+    if (item.url) sizes.set(item.url, item.size || 0);
+    if (item.originalUrl) sizes.set(item.originalUrl, item.originalSize || item.file?.size || 0);
+    if (item.originalThumbnailUrl) sizes.set(item.originalThumbnailUrl, item.originalThumbnailSize || 1024 * 1024);
+    if (item.thumbnailUrl) sizes.set(item.thumbnailUrl, item.thumbnailSize || 1024 * 1024);
+  }
+  return [...sizes.values()].reduce((sum, size) => sum + size, 0);
+}
 
 const cloneItems = (items) => (Array.isArray(items) ? items.map((item) => ({ ...item })) : []);
 
@@ -20,11 +32,8 @@ const itemsEqual = (left, right) => {
  * Keep a bounded undo/redo history for the gallery's image items.
  *
  * `setItems` accepts either a value or a React-style updater function. The hook
- * owns object URLs found in item.url and releases URLs once no retained
- * snapshot references them. URLs in item.originalUrl are treated as external
- * original URLs remain retained while a snapshot references them; all known
- * owned URLs are released when their last retained snapshot is evicted or on
- * unmount.
+ * owns image, original and thumbnail object URLs and releases them once no
+ * retained snapshot references them. All owned URLs are released on unmount.
  */
 export default function useImageHistory(initialItems = []) {
   const [initialSnapshot] = useState(() => cloneItems(initialItems));
@@ -38,6 +47,8 @@ export default function useImageHistory(initialItems = []) {
   const rememberSnapshotUrls = useCallback((snapshots) => {
     snapshots.forEach((snapshot) => {
       snapshot.forEach((item) => {
+        if (typeof item?.originalThumbnailUrl === 'string') knownUrlsRef.current.add(item.originalThumbnailUrl);
+        if (typeof item?.thumbnailUrl === 'string') knownUrlsRef.current.add(item.thumbnailUrl);
         if (typeof item?.url === 'string') knownUrlsRef.current.add(item.url);
         if (typeof item?.originalUrl === 'string') knownUrlsRef.current.add(item.originalUrl);
       });
@@ -56,6 +67,8 @@ export default function useImageHistory(initialItems = []) {
     const retainedOriginalUrls = new Set();
     retained.forEach((snapshot) => snapshot.forEach((item) => {
       if (typeof item?.originalUrl === 'string') retainedOriginalUrls.add(item.originalUrl);
+      if (typeof item?.originalThumbnailUrl === 'string') retainedUrls.add(item.originalThumbnailUrl);
+      if (typeof item?.thumbnailUrl === 'string') retainedUrls.add(item.thumbnailUrl);
       if (typeof item?.url === 'string') retainedUrls.add(item.url);
     }));
 
@@ -73,6 +86,7 @@ export default function useImageHistory(initialItems = []) {
 
     pastRef.current = [...pastRef.current, currentSnapshot].slice(-MAX_HISTORY);
     futureRef.current = [];
+    while (pastRef.current.length && retainedBytes([nextSnapshot, ...pastRef.current]) > MAX_HISTORY_BYTES) pastRef.current.shift();
     itemsRef.current = nextSnapshot;
     rememberSnapshotUrls([nextSnapshot, currentSnapshot, ...pastRef.current]);
     publish(nextSnapshot);
@@ -119,6 +133,10 @@ export default function useImageHistory(initialItems = []) {
         type: item.originalType ?? file?.type ?? item.type,
         size: item.originalSize ?? file?.size ?? item.size,
         url: originalUrl,
+        thumbnailUrl: item.originalThumbnailUrl || undefined,
+        thumbnailSize: item.originalThumbnailSize,
+        width: item.originalWidth || item.width,
+        height: item.originalHeight || item.height,
         ...(item.originalUrl || !file ? {} : { originalUrl }),
       };
     }));

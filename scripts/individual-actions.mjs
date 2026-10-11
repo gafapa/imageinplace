@@ -13,7 +13,7 @@ const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><r
 const editor = page.locator('.individual-editor');
 const tool = (name) => editor.getByRole('button', { name, exact: true }).click();
 const open = () => page.locator('.image-card-edit').first().click();
-const urls = () => page.locator('.image-thumb img').evaluateAll((images) => images.map((image) => image.src));
+const urls = () => page.locator('.image-thumb img').evaluateAll((images) => images.map((image) => image.dataset.sourceUrl || image.src));
 const dimensions = async (width, height) => page.waitForFunction(([w, h]) => {
   const canvas = document.querySelector('.individual-editor canvas');
   return canvas?.width === w && canvas?.height === h;

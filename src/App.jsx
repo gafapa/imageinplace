@@ -1,5 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Editor from './features/Editor';
+import ProjectControls from './features/ProjectControls';
+import { openProject, saveProject } from './features/project';
+import { inspectImage, releaseItems, validateWorkspace, MAX_FILE_BYTES } from './features/imageLimits';
+import useBatchTask, { checkCancelled } from './features/useBatchTask';
 import useImageHistory from './features/useImageHistory';
 import CompressionPanel from './features/CompressionPanel';
 import RenamePanel from './features/RenamePanel';
@@ -43,7 +47,7 @@ import {
   ZoomOut,
 } from 'lucide-react';
 
-const MAX_FILE_SIZE = 40 * 1024 * 1024;
+const MAX_FILE_SIZE = MAX_FILE_BYTES;
 const WELCOME_KEY = 'imageinplace-welcome-dismissed';
 const UNSUPPORTED_TYPES = new Set(['image/heic', 'image/heif', 'image/tiff']);
 
@@ -54,6 +58,9 @@ const writeWelcomeDismissed = () => { try { localStorage.setItem(WELCOME_KEY, 't
 const tools = [
   { id: 'adjust', label: 'Mejorar', description: 'Luz, color y nitidez', icon: SlidersHorizontal },
   { id: 'resize', label: 'Tamaño', description: 'Medidas exactas', icon: Maximize2 },
+  { id: 'deskew', label: 'Enderezar', description: 'Alinea documentos con precisión', icon: RotateCw },
+  { id: 'perspective', label: 'Perspectiva', description: 'Corrige las cuatro esquinas', icon: Scan },
+  { id: 'visualcrop', label: 'Recorte visual', description: 'Arrastra el marco de recorte', icon: Crop },
   { id: 'crop', label: 'Recortar', description: 'Encuadre y proporción', icon: Crop },
   { id: 'trim', label: 'Recortar al contenido', description: 'Quita bordes vacíos', icon: Scan },
   { id: 'background', label: 'Quitar fondo', description: 'Fondo transparente', icon: Eraser },
@@ -116,12 +123,13 @@ function UploadZone({ onFiles, compact = false }) {
   );
 }
 
-function Home({ onFiles, error, onUndo, canUndo, onRedo, canRedo }) {
+function Home({ onFiles, error, onUndo, canUndo, onRedo, canRedo, projectControls }) {
   return (
     <div className="home-shell">
       <header className="site-header">
         <BrandMark />
         <div className="home-actions">
+          {projectControls}
           <button className="toolbar-button" disabled={!canUndo} onClick={onUndo} aria-label="Deshacer global"><Undo2 /></button>
           <button className="toolbar-button" disabled={!canRedo} onClick={onRedo} aria-label="Rehacer global"><Redo2 /></button>
           <span className="privacy-label"><ShieldCheck size={17} aria-hidden="true" /> Procesado local</span>
@@ -232,7 +240,7 @@ function ImageMetadata({ item, selectionCount }) {
   </div>;
 }
 
-function Gallery({ notice, onDismissNotice, items, selectedIds, setSelectedIds, onAddFiles, onBatchEdit, onEditItem, onCompareItem, onRemove, onClear, batchAction, onBatchClose, onBatchApply, batchBusy, onBatchBusy, onUndo, onRedo, canUndo, canRedo, onRestore, onRename }) {
+function Gallery({ notice, onDismissNotice, items, selectedIds, setSelectedIds, onAddFiles, onBatchEdit, onEditItem, onCompareItem, onRemove, onClear, batchAction, onBatchClose, onBatchApply, batchBusy, onBatchBusy, onUndo, onRedo, canUndo, canRedo, onRestore, onRename, projectControls }) {
   const addInputRef = useRef(null);
   const [previewZoom, setPreviewZoom] = useState(100);
   const [previews, setPreviews] = useState({});
@@ -264,6 +272,7 @@ function Gallery({ notice, onDismissNotice, items, selectedIds, setSelectedIds, 
       <header className="site-header">
         <BrandMark />
         <div className="gallery-header-actions">
+          {projectControls}
           <input ref={addInputRef} className="sr-only" type="file" accept="image/*" multiple onChange={(event) => onAddFiles(Array.from(event.target.files || []))} />
           <div className="header-action-group">
             <button className="toolbar-button" disabled={batchBusy || !canUndo} onClick={onUndo} title="Deshacer global" aria-label="Deshacer global"><Undo2 /></button>
@@ -291,7 +300,7 @@ function Gallery({ notice, onDismissNotice, items, selectedIds, setSelectedIds, 
               return (
                 <article key={item.id} className={`image-card ${selected ? 'selected' : ''}`}>
                   <button className="image-card-select" disabled={batchBusy} aria-pressed={selected} aria-label={`${selected ? 'Quitar de la selección' : 'Seleccionar'} ${item.name}`} onClick={() => toggleItem(item.id)}>
-                    <span className="image-thumb"><img src={previews[item.id] || item.url} alt="" /></span>
+                    <span className="image-thumb"><img data-source-url={item.url} src={previews[item.id] || item.thumbnailUrl || item.url} loading="lazy" decoding="async" alt="" /></span>
                     <span className="selection-order" aria-hidden="true">{selected ? selectionOrder : ''}</span>
                     <span className="image-card-meta"><strong>{item.name}</strong><small>{formatBytes(item.size)}</small></span>
                   </button>
@@ -341,6 +350,7 @@ function getBatchSize(source, { action, settings, resizeMode, maxEdge, allowEnla
 }
 
 function BatchPanel({ action, items, onApply, onClose, onBusy, onPreview }) {
+  const task = useBatchTask();
   const [settings, setSettings] = useState({ ...initialSettings });
   const [maxEdge, setMaxEdge] = useState(1600);
   const [resizeMode, setResizeMode] = useState('longest');
@@ -363,10 +373,10 @@ function BatchPanel({ action, items, onApply, onClose, onBusy, onPreview }) {
         const nextPreviews = {};
         for (const item of items) {
           if (!active) return;
-          const source = await loadSource(item.url);
+          const source = await loadSource(item.thumbnailUrl || item.url);
           const canvas = document.createElement('canvas');
           const size = getBatchSize(source, { action, settings, resizeMode, maxEdge, allowEnlarge }, true);
-          renderImage(source, canvas, { ...settings, blur: settings.blur * size.width / source.naturalWidth }, size, []);
+          renderImage(source, canvas, { ...settings, blur: settings.blur * size.width / (item.width || source.naturalWidth) }, size, []);
           nextPreviews[item.id] = canvas.toDataURL(action === 'export' ? settings.format : 'image/png', settings.quality / 100);
         }
         if (active) onPreview(nextPreviews);
@@ -384,9 +394,12 @@ function BatchPanel({ action, items, onApply, onClose, onBusy, onPreview }) {
     onBusy?.(true);
     setError('');
     const results = [];
+    const signal = task.start();
+    setProgress(0);
     try {
       for (const item of items) {
-        const source = await loadSource(item.url);
+        await checkCancelled(signal);
+        const source = await loadImage(item.url);
         const canvas = document.createElement('canvas');
         const size = getBatchSize(source, { action, settings, resizeMode, maxEdge, allowEnlarge });
         if (size.width > 16384 || size.height > 16384 || size.width * size.height > 64000000) throw new Error('Output too large');
@@ -394,9 +407,11 @@ function BatchPanel({ action, items, onApply, onClose, onBusy, onPreview }) {
         const format = action === 'export' ? settings.format : saveFormatFor(item.type);
         const quality = action === 'export' ? settings.quality / 100 : SAVE_QUALITY;
         const blob = await new Promise((resolve, reject) => flattenForFormat(canvas, format).toBlob((value) => value ? resolve(value) : reject(new Error('Encoding failed')), format, quality));
+        signal.throwIfAborted();
         results.push({ item, blob });
         setProgress(results.length);
       }
+      await checkCancelled(signal);
       if (action === 'export') {
         const extension = settings.format.split('/')[1].replace('jpeg', 'jpg');
         const names = new Set();
@@ -415,18 +430,19 @@ function BatchPanel({ action, items, onApply, onClose, onBusy, onPreview }) {
           entries.forEach((entry) => zip.file(entry.name, entry.blob));
           blob = await zip.generateAsync({ type: 'blob' });
         }
+        signal.throwIfAborted();
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = entries.length === 1 ? entries[0].name : `imageinplace-${entries.length}-imagenes.zip`;
         link.click();
         window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
       } else {
-        onApply(results);
+        await onApply(results, signal);
       }
       onBusy?.(false);
       onClose();
-    } catch {
-      setError('No se pudo completar la operación. No se han aplicado cambios. Prueba con menos imágenes o un tamaño menor.');
+    } catch (cause) {
+      setError(cause.name === 'AbortError' ? 'Operación cancelada. No se han aplicado cambios.' : 'No se pudo completar la operación. No se han aplicado cambios. Prueba con menos imágenes o un tamaño menor.');
       setBusy(false);
       onBusy?.(false);
     }
@@ -441,7 +457,7 @@ function BatchPanel({ action, items, onApply, onClose, onBusy, onPreview }) {
       </fieldset>
       <p className="batch-hint">Vista previa en las imágenes seleccionadas. Los cambios se guardan al aplicar.</p>
       {error && <p role="alert">{error}</p>}
-      <footer className="batch-footer"><span role="status">{busy ? `Procesando ${progress}/${items.length}…` : action === 'export' ? 'Varias imágenes se descargan en un ZIP.' : 'El resultado aparecerá en la galería.'}</span><button type="button" className="toolbar-button" disabled={busy} onClick={onClose}>Cancelar</button><button type="button" className="primary-button" onClick={apply} disabled={busy || (action === 'watermark' && !settings.watermarkText.trim())}>{busy ? 'Procesando…' : action === 'export' ? 'Descargar' : 'Aplicar'}</button></footer>
+      <footer className="batch-footer"><span role="status">{busy ? `Procesando ${progress}/${items.length}…` : action === 'export' ? 'Varias imágenes se descargan en un ZIP.' : 'El resultado aparecerá en la galería.'}</span><button type="button" className="toolbar-button" onClick={busy ? task.cancel : onClose}>Cancelar</button><button type="button" className="primary-button" onClick={apply} disabled={busy || (action === 'watermark' && !settings.watermarkText.trim())}>{busy ? 'Procesando…' : action === 'export' ? 'Descargar' : 'Aplicar'}</button></footer>
   </section>;
 }
 
@@ -616,28 +632,94 @@ export default function App() {
   const [error, setError] = useState('');
   const [showWelcome, setShowWelcome] = useState(() => !readWelcomeDismissed());
 
-  const addFiles = useCallback((files) => {
-    if (batchBusy) return;
-    const isSupported = (file) => file.type.startsWith('image/') && !UNSUPPORTED_TYPES.has(file.type);
-    const validFiles = files.filter((file) => isSupported(file) && file.size <= MAX_FILE_SIZE);
-    const rejected = files.filter((file) => !validFiles.includes(file));
-    if (!validFiles.length) {
-      setError('No hemos podido abrir ese archivo. Prueba con una imagen JPG, PNG, WebP, GIF o SVG de hasta 40 MB.');
-      return;
-    }
-    if (rejected.length) {
-      const names = rejected.slice(0, 3).map((file) => file.name).join(', ');
-      setError(`${rejected.length === 1 ? 'Se ha omitido 1 archivo' : `Se han omitido ${rejected.length} archivos`} (formato no compatible o más de 40 MB): ${names}${rejected.length > 3 ? '…' : ''}`);
-    } else setError('');
-    const additions = validFiles.map((file) => {
-      const url = URL.createObjectURL(file);
-      return { id: crypto.randomUUID(), name: file.name, type: file.type, size: file.size, file, lastModified: file.lastModified, url, originalUrl: url, originalName: file.name, originalType: file.type, originalSize: file.size };
-    });
-    setItems((current) => [...current, ...additions]);
-    setSelectedIds((current) => [...current, ...additions.map((item) => item.id)]);
-    setWorkspaceMode('gallery');
-    if (!items.length) setActiveIndex(0);
-  }, [items.length, batchBusy, setItems]);
+  const [ioBusy, setIoBusy] = useState(false);
+  const [ioStatus, setIoStatus] = useState('');
+  useEffect(() => {
+    if (ioBusy || !ioStatus) return;
+    const timer = setTimeout(() => setIoStatus(''), 6000);
+    return () => clearTimeout(timer);
+  }, [ioBusy, ioStatus]);
+  const ioLock = useRef(false);
+  const savedItems = useRef('');
+  const workspaceSignature = JSON.stringify(items.map(({ id, url, name }) => [id, url, name]));
+  const itemsRef = useRef(items);
+  useEffect(() => { itemsRef.current = items; }, [items]);
+
+  useEffect(() => {
+    const handleUnload = (event) => {
+      if (ioLock.current || (items.length && workspaceSignature !== savedItems.current) || workspaceMode === 'editor') {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [items, workspaceMode, workspaceSignature]);
+
+  const addFiles = useCallback(async (files) => {
+    if (batchBusy || ioLock.current) return;
+    ioLock.current = true; setIoBusy(true); setError('');
+    const additions = [];
+    const rejected = [];
+    const notices = [];
+    try {
+      for (const [index, file] of files.entries()) {
+        setIoStatus(`Abriendo ${index + 1}/${files.length}…`);
+        try {
+          if (!file.type.startsWith('image/') || UNSUPPORTED_TYPES.has(file.type) || file.size > MAX_FILE_SIZE) throw new Error('Formato no compatible o más de 40 MB.');
+          const info = await inspectImage(file);
+          const candidate = { size: file.size, originalSize: file.size, width: info.width, height: info.height };
+          validateWorkspace([...itemsRef.current, ...additions, candidate]);
+          const url = URL.createObjectURL(file);
+          const thumbnailUrl = URL.createObjectURL(info.thumbnail);
+          additions.push({ id: crypto.randomUUID(), name: file.name, type: file.type, size: file.size, file, lastModified: file.lastModified,
+            url, originalUrl: url, originalName: file.name, originalType: file.type, originalSize: file.size,
+            width: info.width, height: info.height, originalWidth: info.width, originalHeight: info.height, thumbnailUrl, thumbnailSize: info.thumbnail.size, originalThumbnailSize: info.thumbnail.size, originalThumbnailUrl: thumbnailUrl });
+          if (file.type === 'image/gif') notices.push('Al editar un GIF, el resultado será una imagen estática.');
+        } catch (cause) { rejected.push(`${file.name}: ${cause.message}`); }
+      }
+      if (additions.length) {
+        setItems((current) => [...current, ...additions]);
+        setSelectedIds((current) => [...current, ...additions.map((item) => item.id)]);
+        if (workspaceMode !== 'editor') setWorkspaceMode('gallery');
+        if (!itemsRef.current.length) setActiveIndex(0);
+      }
+      setError([...rejected.slice(0, 3), ...(rejected.length > 3 ? [`Otros ${rejected.length - 3} archivos omitidos.`] : []), ...new Set(notices)].join(' '));
+      setIoStatus(additions.length ? `${additions.length} imágenes abiertas.` : 'No se añadieron imágenes.');
+    } finally { ioLock.current = false; setIoBusy(false); }
+  }, [batchBusy, setItems, workspaceMode]);
+
+  const handleOpenProject = async (file) => {
+    if (batchBusy || ioLock.current) return;
+    ioLock.current = true; setIoBusy(true); setIoStatus('Abriendo proyecto…'); setError('');
+    let additions = [];
+    try {
+      const project = await openProject(file);
+      additions = project.items;
+      validateWorkspace([...itemsRef.current, ...additions]);
+      setItems((current) => [...current, ...additions]);
+      setSelectedIds(additions.map((item) => item.id));
+      setWorkspaceMode('gallery'); setIoStatus('Proyecto abierto.');
+      if (!project.integrityVerified) setError('Proyecto antiguo abierto sin hashes de integridad. Guarda una nueva copia para añadir la verificación.');
+    } catch (cause) { releaseItems(additions); setError(cause.message); setIoStatus('No se pudo abrir el proyecto.'); }
+    finally { ioLock.current = false; setIoBusy(false); }
+  };
+
+  const handleSaveProject = async () => {
+    if (batchBusy || ioLock.current || !items.length) return;
+    ioLock.current = true; setIoBusy(true); setIoStatus('Preparando proyecto…'); setError('');
+    const snapshot = items;
+    try {
+      const blob = await saveProject(snapshot);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a'); link.href = url; link.download = 'imageinplace-proyecto.iip'; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      savedItems.current = JSON.stringify(snapshot.map(({ id, url, name }) => [id, url, name]));
+      setIoStatus('Proyecto preparado para descargar. Conserva el archivo en tu equipo.');
+    } catch (cause) { setError(cause.message); setIoStatus('No se pudo guardar el proyecto.'); }
+    finally { ioLock.current = false; setIoBusy(false); }
+  };
+  const projectControls = <ProjectControls busy={batchBusy || ioBusy} hasItems={!!items.length} onOpen={handleOpenProject} onSave={handleSaveProject} />;
 
   useEffect(() => {
     const handlePaste = (event) => {
@@ -686,9 +768,24 @@ export default function App() {
     if (selectedIds.length) setBatchAction({ toolId, items: items.filter((item) => selectedIds.includes(item.id)) });
   };
 
-  const applyBatchResults = (results) => {
-    const replacements = new Map(results.map(({ item, blob, name }) => [item.id, { ...item, name: nameForType(name || item.name, blob.type), type: blob.type || item.type, url: URL.createObjectURL(blob), size: blob.size }]));
-    setItems((current) => current.map((item) => replacements.get(item.id) || item));
+  const applyBatchResults = async (results, signal) => {
+    const staged = [];
+    try {
+      for (const { item, blob, name } of results) {
+        signal?.throwIfAborted();
+        const info = await inspectImage(blob);
+        staged.push({ ...item, name: nameForType(name || item.name, blob.type), type: blob.type || item.type,
+          url: URL.createObjectURL(blob), size: blob.size, width: info.width, height: info.height, thumbnailSize: info.thumbnail.size, thumbnailUrl: URL.createObjectURL(info.thumbnail) });
+      }
+      signal?.throwIfAborted();
+      const replacements = new Map(staged.map((item) => [item.id, item]));
+      validateWorkspace(itemsRef.current.map((item) => replacements.get(item.id) || item));
+      setItems((current) => current.map((item) => replacements.get(item.id) || item));
+    } catch (cause) {
+      // The originals still belong to the existing gallery/history.
+      staged.forEach((item) => { URL.revokeObjectURL(item.url); URL.revokeObjectURL(item.thumbnailUrl); });
+      throw cause;
+    }
   };
 
   const openItemEditor = (itemId) => {
@@ -700,18 +797,19 @@ export default function App() {
     setWorkspaceMode('editor');
   };
 
-  const onUndo = () => { setBatchAction(null); undo(); };
-  const onRedo = () => { setBatchAction(null); redo(); };
+  const onUndo = () => { if (ioLock.current) return; setBatchAction(null); undo(); };
+  const onRedo = () => { if (ioLock.current) return; setBatchAction(null); redo(); };
   const onRename = (renames) => {
     const names = new Map(renames.map(({ id, name }) => [id, name]));
     setItems((current) => current.map((item) => names.has(item.id) ? { ...item, name: names.get(item.id) } : item));
   };
 
   return <>
-    {!items.length && <Home {...{onFiles: addFiles, error, onUndo, onRedo, canUndo, canRedo}} />}
-    {items.length > 0 && <Gallery {...{ notice: error, onDismissNotice: () => setError(''), items, selectedIds, setSelectedIds, onAddFiles: addFiles, onBatchEdit: openBatchEditor, onEditItem: openItemEditor, onCompareItem: setComparisonId, onRemove: removeSelected, onClear: clearAll, batchAction, onBatchClose: () => setBatchAction(null), onBatchApply: applyBatchResults, batchBusy, onBatchBusy: setBatchBusy, onUndo, onRedo, canUndo, canRedo, onRestore: () => { setBatchAction(null); restoreOriginals(selectedIds); }, onRename }} />}
+    {!items.length && <Home {...{onFiles: addFiles, error, onUndo, onRedo, canUndo, canRedo, projectControls}} />}
+    {items.length > 0 && <Gallery {...{ notice: error, onDismissNotice: () => setError(''), items, selectedIds, setSelectedIds, onAddFiles: addFiles, onBatchEdit: openBatchEditor, onEditItem: openItemEditor, onCompareItem: setComparisonId, onRemove: removeSelected, onClear: clearAll, batchAction, onBatchClose: () => setBatchAction(null), onBatchApply: applyBatchResults, batchBusy: batchBusy || ioBusy, onBatchBusy: setBatchBusy, onUndo, onRedo, canUndo, canRedo, onRestore: () => { setBatchAction(null); restoreOriginals(selectedIds); }, onRename, projectControls }} />}
     {comparisonId && items.some((item) => item.id === comparisonId) && <CompareDialog items={items} itemId={comparisonId} onNavigate={setComparisonId} onClose={() => setComparisonId(null)} />}
     {items.length > 0 && workspaceMode === 'editor' && <Editor key={items[activeIndex].id} {...{ items, setItems, setSelectedIds, activeIndex, setActiveIndex, onAddFiles: addFiles, onBack: () => setWorkspaceMode('gallery'), onSave: applyBatchResults, ToolPanel, tools, initialTool: editorStartTool }} />}
+    {ioStatus && <div className="workspace-status" role="status" aria-live="polite">{ioStatus}</div>}
     {showWelcome && <WelcomeDialog onClose={() => setShowWelcome(false)} />}
   </>;
 }

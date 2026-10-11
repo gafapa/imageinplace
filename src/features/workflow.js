@@ -24,6 +24,7 @@ export async function applyWorkflow(item, workflow, context = {}) {
   if (typeof document === 'undefined') throw new Error('Los flujos necesitan un navegador.');
   const source = await load(item.url); let canvas = drawSource(source, source.naturalWidth, source.naturalHeight); let name = item.name;
   for (const step of workflow?.steps || []) {
+    context.signal?.throwIfAborted();
     const p = step.params || {};
     if (step.type === 'resize') { const edge = Math.max(1, Number(p.maxEdge) || 2000); const scale = Math.min(1, edge / Math.max(canvas.width, canvas.height)); if (scale < 1) canvas = drawSource(canvas, Math.max(1, Math.round(canvas.width * scale)), Math.max(1, Math.round(canvas.height * scale))); }
     if (step.type === 'crop') { let left = 0; let top = 0; let right = 0; let bottom = 0; if (p.ratio > 0) { const target = Number(p.ratio); const current = canvas.width / canvas.height; if (current > target) { const width = canvas.height * target; left = right = (canvas.width - width) / 2; } else { const height = canvas.width / target; top = bottom = (canvas.height - height) / 2; } } else { const edges = ['left', 'top', 'right', 'bottom'].map((key) => Math.min(100, Math.max(0, numberOr(p[key], 0)))); if (edges[0] + edges[2] >= 100 || edges[1] + edges[3] >= 100) throw new Error('El recorte del flujo elimina toda la imagen. Revisa los bordes.'); left = canvas.width * edges[0] / 100; top = canvas.height * edges[1] / 100; right = canvas.width * edges[2] / 100; bottom = canvas.height * edges[3] / 100; } const out = canvasFor(Math.round(canvas.width - left - right), Math.round(canvas.height - top - bottom)); out.getContext('2d').drawImage(canvas, left, top, out.width, out.height, 0, 0, out.width, out.height); canvas = out; }
@@ -48,6 +49,7 @@ export async function applyWorkflow(item, workflow, context = {}) {
   }
   const output = [...(workflow?.steps || [])].reverse().find((step) => step.type === 'format'); const requested = output?.params?.format; const format = ['jpeg', 'png', 'webp'].includes(requested) ? mime(requested) : (['image/jpeg', 'image/png', 'image/webp'].includes(item.type) ? item.type : 'image/png'); const quality = Math.min(1, Math.max(0.05, numberOr(output?.params?.quality, 85) / 100));
   if (format === 'image/jpeg') { const opaque = canvasFor(canvas.width, canvas.height); const opaqueContext = opaque.getContext('2d'); opaqueContext.fillStyle = '#ffffff'; opaqueContext.fillRect(0, 0, opaque.width, opaque.height); opaqueContext.drawImage(canvas, 0, 0); canvas = opaque; }
+  context.signal?.throwIfAborted();
   const blob = await blobFrom(canvas, format, quality); const extension = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' }[blob.type] || '.png';
   name = `${name.replace(/\.[^.]*$/, '')}${extension}`;
   return { blob, name, width: canvas.width, height: canvas.height };

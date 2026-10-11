@@ -1,3 +1,4 @@
+import { checkCancelled } from './batchTask.js';
 export const A4_POINTS = { portrait: { width: 595.2756, height: 841.8898 }, landscape: { width: 841.8898, height: 595.2756 } };
 export const mmToPoints = (value) => Number(value) * 72 / 25.4;
 
@@ -61,11 +62,13 @@ export async function generatePrintableSheets(items, options = {}) {
   const title = options.title ? String(options.title).slice(0, 120) : '';
   const titleBox = { width: layout.width - layout.marginPt * 2, height: layout.titleHeight - 3 };
   const titleImage = title ? await pdf.embedPng(await rasterizeTitle(title, titleBox.width, titleBox.height)) : null;
+  let completed = 0;
   for (let pageIndex = 0; pageIndex < pages; pageIndex += 1) {
     const page = pdf.addPage([layout.width, layout.height]);
     if (titleImage) page.drawImage(titleImage, { x: layout.marginPt, y: layout.height - layout.marginPt - layout.titleHeight + 2, ...titleBox });
     const pageItems = items.slice(pageIndex * layout.perPage, (pageIndex + 1) * layout.perPage);
     for (let index = 0; index < pageItems.length; index += 1) {
+      await checkCancelled(options.signal);
       const row = Math.floor(index / layout.columns); const column = index % layout.columns;
       const x = layout.marginPt + column * (layout.cellWidth + layout.gapPt);
       const y = layout.height - layout.marginPt - layout.titleHeight - (row + 1) * layout.cellHeight - row * layout.gapPt;
@@ -73,7 +76,10 @@ export async function generatePrintableSheets(items, options = {}) {
       const caption = options.captions ? String(item.name || '') : '';
       const embedded = await pdf.embedJpg(await rasterize(item, layout.cellWidth, layout.cellHeight, caption));
       page.drawImage(embedded, { x, y, width: layout.cellWidth, height: layout.cellHeight });
+      options.onProgress?.(++completed);
     }
   }
-  return new Blob([await pdf.save()], { type: 'application/pdf' });
+  const bytes = await pdf.save();
+  options.signal?.throwIfAborted();
+  return new Blob([bytes], { type: 'application/pdf' });
 }

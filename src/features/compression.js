@@ -35,6 +35,8 @@ function dimensionsOf(source) {
 /** Encode an image locally, finding the highest quality that meets targetBytes. */
 export async function compressToTarget(sourceOrCanvas, options = {}) {
   if (typeof document === 'undefined') throw new Error('La compresión necesita un navegador.');
+  const signal = options.signal;
+  signal?.throwIfAborted();
   const targetBytes = Number(options.targetBytes);
   if (!Number.isFinite(targetBytes) || targetBytes <= 0) throw new Error('El tamaño objetivo no es válido.');
   const format = options.format === 'image/webp' ? 'image/webp' : 'image/jpeg';
@@ -55,6 +57,7 @@ export async function compressToTarget(sourceOrCanvas, options = {}) {
   const maxPasses = allowResize ? 32 : 1;
 
   for (let pass = 0; pass < maxPasses; pass += 1) {
+    signal?.throwIfAborted();
     const width = Math.max(1, Math.round(original.width * scale));
     const height = Math.max(1, Math.round(original.height * scale));
     if (Math.min(width, height) < minDimension && scale < 1) break;
@@ -70,6 +73,7 @@ export async function compressToTarget(sourceOrCanvas, options = {}) {
     let high = maxQuality;
     let fitting = null;
     for (let attempt = 0; attempt < 9; attempt += 1) {
+      signal?.throwIfAborted();
       const quality = (low + high) / 2;
       const blob = await canvasToBlob(canvas, format, quality);
       if (blob.size <= targetBytes) { fitting = { blob, quality }; low = quality; }
@@ -88,6 +92,7 @@ export async function compressToTarget(sourceOrCanvas, options = {}) {
     scale = Math.max(minDimension / Math.min(original.width, original.height), scale * 0.82);
   }
   if (!best) throw new Error('No se pudo generar un resultado dentro de los límites.');
+  signal?.throwIfAborted();
   return best;
 }
 

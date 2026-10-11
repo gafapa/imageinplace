@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { offlineBuild } from './scripts/offline-build.mjs';
 
 // Enforced by the browser: the page may not send data anywhere except its own origin.
 // Only added to production builds because the dev server injects inline scripts for HMR.
@@ -24,5 +25,5 @@ const contentSecurityPolicy = () => ({
 });
 
 export default defineConfig({
-  plugins: [react(), contentSecurityPolicy()],
+  plugins: [react(), contentSecurityPolicy(), offlineBuild()],
 });

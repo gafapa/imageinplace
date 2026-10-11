@@ -10,6 +10,9 @@ Image in Place is a privacy-first image toolbox designed for teachers and useful
 - Background removal: makes a uniform background that touches the edges transparent (logos, scanned drawings, screenshots, product photos), with tolerance, soft de-haloed edges, optional removal of enclosed areas, and PNG output; works individually or in batches
 - Trim to content: crops transparent or uniform-colour margins around the content, with tolerance and optional padding, individually or in batches
 - Rotation and horizontal reflection
+- Fine document straightening (−15° to +15°) with an alignment grid and expanded output bounds; white or transparent corner fill
+- Visual crop with draggable corner handles, frame movement, drag-to-select, keyboard arrows, and precise percentage inputs
+- Four-corner perspective correction with convex-selection validation, a live result preview, bilinear alpha-aware resampling, and a cancellable full-resolution worker
 - Privacy zones for faces, names, and other sensitive information: adaptive pixelation (at most ~8 blocks on the short side) or a solid fill, recommended for text
 - Text watermarks with position, size, and opacity controls
 - JPEG, PNG, and WebP export with adjustable quality and estimated file size
@@ -25,8 +28,13 @@ Image in Place is a privacy-first image toolbox designed for teachers and useful
 - Privacy masking belongs to the individual editor opened from each image's pencil button
 - Batch processing with shared settings and client-side ZIP download
 - Multiple open images, clipboard paste, full-workspace drag and drop, undo, and redo
+- Validated imports with per-image and workspace memory limits, corrupt-file reports, GIF flattening notice, and lightweight gallery thumbnails
+- Local `.iip` project files with SHA-256 integrity checks containing current images, original files, filenames, and modification times; opening adds the project to the gallery atomically
+- Offline app-shell caching of all production assets, including lazy PDF/ZIP/EXIF chunks and workers, with readiness shown in the Project menu
+- Browser unload protection for work not included in the most recently prepared project download and for open editor drafts
+- Background removal and content-bound detection run in a local Web Worker; processing panels expose progress and cancellation before atomic application
 - Viewport-fitted home, gallery, and editor surfaces with scrolling contained inside work areas
-- Global undo/redo (20 retained changes), including deletion, and restore selected originals
+- Global undo/redo (up to 20 retained changes, also bounded by a 256 MiB retained-resource budget), including deletion, and restore selected originals
 - Target-size JPEG/WebP compression with measured results and an explicit unattainable-target report
 - Batch filename patterns with counters, safe names, MIME-aware extensions, and collision handling
 - Exact canvas dimensions, proportional contain fit, padding, nine alignments, background, and exportable border
@@ -69,7 +77,25 @@ Security response headers (CSP with `frame-ancestors`, HSTS, `nosniff`, Referrer
 
 ## Privacy
 
-All file decoding, editing, previewing, and export happen locally in the user's browser. Image URLs remain available while referenced by the bounded undo history and are released when no retained state needs them or the app unmounts. Images and edit history are not persisted across a page reload. Only named workflow configurations and the welcome preference use localStorage; the app keeps working when storage is blocked. Production builds ship a Content-Security-Policy that only allows connections to the app's own origin, so the browser itself enforces that images are not sent anywhere. Edited JPEG/WebP images are saved in their original format; every download is re-encoded through a canvas, so EXIF data such as GPS location is not included.
+All file decoding, editing, previewing, and export happen locally in the user's browser. Image URLs remain available while referenced by the bounded undo history and are released when no retained state needs them or the app unmounts. Images and edit history are not automatically persisted across a page reload. Use **Project → Save project** to download a local `.iip` file and **Open project** to add its images back to the gallery. Project files include original bytes and metadata, including any original GPS data; treat them like the original images. They do not contain the undo history, unsaved editor drafts, or browser workflow preferences. The browser cannot confirm that a prepared download was actually saved to disk. The offline cache contains only application assets; it never stores image blobs, project files, or editing state. Only named workflow configurations and the welcome preference use localStorage; the app keeps working when storage is blocked. Production builds ship a Content-Security-Policy that only allows connections to the app's own origin, so the browser itself enforces that images are not sent anywhere. Edited JPEG/WebP images are saved in their original format; image and PDF exports are re-encoded through a canvas, so EXIF data such as GPS location is not included in those exports.
+
+## Memory and cancellation
+
+Imports are decoded sequentially and validated before entering the gallery. Each original file may be at most 40 MiB, each image at most 40 megapixels and 10,000 pixels per side. A workspace admits at most 100 images, 120 megapixels (counting the larger of current and original dimensions), and 250 MiB of retained original/current image bytes. Thumbnails have a maximum side of 480 pixels. Undo snapshots share image URLs; old snapshots are evicted when their retained-resource budget is exceeded. The individual editor also limits its draft undo history to 30 snapshots and a 128 MiB encoded-draft budget, releasing draft URLs when no retained state references them. These bounds do not measure the browser's total process memory: decoding and canvas/worker buffers also consume memory.
+
+Project files use a versioned, size-bounded manifest followed by raw image bytes, without archive decompression. New version-two projects include a SHA-256 digest for each original/current payload and a 32-byte trailer protecting the prefix and JSON manifest. Opening verifies every digest before decoding any image, then validates metadata, payload ranges, image decoding, and combined workspace limits before one history commit. Version-one projects still open with a visible notice that integrity hashes are absent; saving them produces version two. These checks detect accidental damage; they do not authenticate the author or prevent deliberate replacement of both bytes and hashes. Hash verification requires Web Crypto in a secure context. A failed open leaves existing images untouched. Original bytes remain available for restoration.
+
+Background removal and full-size content-bound detection transfer pixel buffers to module workers. Cancel terminates an active pixel worker. Other tools check cancellation between images and encoding passes; browser canvas encoding or ZIP/PDF assembly already in flight may need to finish, but cancelled output is not applied or downloaded. Image batches are staged and applied in one commit only after successful processing and thumbnail validation. All processing remains local.
+
+## Document geometry
+
+Open an individual image and choose **Straighten**, **Visual crop**, or **Perspective** in the tool rail. Each tool uses a locally staged rendering of the current draft, including earlier unsaved adjustments and annotations. Apply or cancel the active geometry adjustment before using Save or image navigation. Applying a tool adds one undoable draft change; the gallery changes only on Save or image navigation. Cancel adjustment discards its selection, and Cancel editing discards all unapplied gallery changes. Corner controls support pointer/touch input, arrow keys, Shift for larger keyboard steps, and percentage inputs. Crops use exact pixel-edge rounding. Fine rotations expand the canvas to retain the entire source. Perspective output dimensions use the average lengths of opposing selected edges; they cannot infer the physical aspect ratio of the photographed document.
+
+## Offline operation
+
+Production builds generate `sw.js` with an explicit asset list and a content-derived cache version. On the first online visit, the app prepares all shipped HTML, CSS, JavaScript, workers, icons, and lazy chunks; **Project** shows when preparation is complete. Subsequent root-page visits and image editing/export can work without a network connection. Images and projects remain session-only unless explicitly downloaded. Browser cache eviction or cleared site storage can remove offline availability; revisit online to prepare it again.
+
+Service workers require HTTPS (localhost is allowed for development). Development builds do not register a worker. A failed cache install removes only its new cache; active caches remain available. Updates wait while existing app tabs are open, and the menu asks the user to save work and close those tabs. No update reloads a workspace automatically. Activation removes old caches belonging to this application only. Fetch handling is restricted to the build asset list and root navigation; there is no runtime caching of imported files or unrelated URLs.
 
 ## Verification
 
@@ -81,4 +107,4 @@ npm run preview -- --host 127.0.0.1 --port 4180
 npm run test:e2e
 ```
 
-The existing `node scripts/capture.mjs` regression suite uses the development server on port 4173. Browser screenshots and PDF test artifacts are written below `.impeccable/review`.
+The existing `node scripts/capture.mjs` regression suite uses the development server on port 4173 by default (`TEST_URL` can override it). The geometry/offline suite disables the network after installation and verifies reload, local perspective processing, lazily loaded PDF and ZIP exports, and hashed project export. Offline lifecycle checks cover waiting updates, preserved work, safe activation, unrelated caches, and rollback after incomplete installation. Project safety checks cover payload corruption and legacy-format compatibility. Browser screenshots and PDF test artifacts are written below `.impeccable/review`.

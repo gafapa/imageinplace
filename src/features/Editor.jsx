@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, FileImage, Redo2, RotateCcw, Undo2, Upload, X } from 'lucide-react';
 import { initialSettings, clamp, loadImage, renderImage, saveFormatFor, SAVE_QUALITY } from './imageEngine';
+import GeometryEditor from './GeometryEditor';
 import AnnotationsPanel from './AnnotationsPanel';
 import { renderAnnotations } from './annotations';
 import CompressionPanel from './CompressionPanel';
@@ -9,11 +10,14 @@ import CanvasPanel from './CanvasPanel';
 import WorkflowPanel from './WorkflowPanel';
 import BackgroundPanel from './BackgroundPanel';
 import TrimPanel from './TrimPanel';
+import { validateDimensions } from './imageLimits';
 import { flattenForFormat } from './background';
 
 const HISTORY_LIMIT = 30;
+const HISTORY_BYTES = 128 * 1024 * 1024;
 // Tools that work on the current draft as a file and hand back a new one.
-const PANEL_TOOLS = ['compress', 'rename', 'canvas', 'workflow', 'background', 'trim'];
+const GEOMETRY_TOOLS = ['deskew', 'visualcrop', 'perspective'];
+const PANEL_TOOLS = [...GEOMETRY_TOOLS, 'compress', 'rename', 'canvas', 'workflow', 'background', 'trim'];
 // Consecutive changes to the same control within this window collapse into one undo step.
 const HISTORY_GROUP_MS = 800;
 
@@ -59,6 +63,14 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
   const lastHistoryRef = useRef({ group: null, time: 0 });
 
   useEffect(() => {
+    const retained = new Set([draftItem?.url, ...actionItems.map((entry) => entry.url),
+      ...history.map((snapshot) => snapshot.draftItem?.url), ...future.map((snapshot) => snapshot.draftItem?.url)]);
+    ownedUrlsRef.current.forEach((url) => {
+      if (!retained.has(url)) { URL.revokeObjectURL(url); ownedUrlsRef.current.delete(url); }
+    });
+  }, [draftItem, actionItems, history, future]);
+
+  useEffect(() => {
     let active = true;
     // Reset the preview while a new draft URL decodes; the canvas is an external resource this effect syncs to.
     /* eslint-disable react-hooks/set-state-in-effect */
@@ -97,7 +109,7 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
   }, [activeTool, source, settings, outputSize, privacyAreas, annotations]);
 
   const takeSnapshot = () => ({ settings, outputSize, privacyAreas, annotations, customSize: customSizeRef.current, draftItem, draftBlob });
-  const recordHistory = (group = null) => {
+  const recordHistory = (group = null, nextDraft = draftItem) => {
     // Only called from event handlers, never during render.
     // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
@@ -105,7 +117,18 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
     lastHistoryRef.current = { group, time: now };
     setFuture([]);
     if (group && last.group === group && now - last.time < HISTORY_GROUP_MS) return;
-    setHistory((current) => [...current.slice(-(HISTORY_LIMIT - 1)), takeSnapshot()]);
+    setHistory((current) => {
+      const snapshots = [...current.slice(-(HISTORY_LIMIT - 1)), takeSnapshot()];
+      const bytes = () => {
+        const sizes = new Map();
+        for (const entry of [nextDraft, ...snapshots.map((snapshot) => snapshot.draftItem)]) {
+          if (entry && ownedUrlsRef.current.has(entry.url)) sizes.set(entry.url, entry.size || 0);
+        }
+        return [...sizes.values()].reduce((sum, size) => sum + size, 0);
+      };
+      while (snapshots.length && bytes() > HISTORY_BYTES) snapshots.shift();
+      return snapshots;
+    });
   };
   const ownUrl = (blob) => {
     const url = URL.createObjectURL(blob);
@@ -144,10 +167,11 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
   const applyIndividualResults = (results) => {
     const result = results?.[0];
     if (!result?.blob) return;
-    recordHistory();
     const extension = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' }[result.blob.type];
     const name = result.name || (extension ? workingItem.name.replace(/\.[^.]+$/, '') + extension : workingItem.name);
-    setDraftItem({ ...workingItem, name, url: ownUrl(result.blob), type: result.blob.type, size: result.blob.size });
+    const nextDraft = { ...workingItem, name, url: ownUrl(result.blob), type: result.blob.type, size: result.blob.size };
+    recordHistory(null, nextDraft);
+    setDraftItem(nextDraft);
     setDraftBlob(result.blob);
     setSettings(initialSettings); setPrivacyAreas([]); setAnnotations([]);
     setSelectedAnnotationId(null); setSelectedArea(0); customSizeRef.current = false;
@@ -182,6 +206,7 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
   };
 
   const undo = () => {
+    if (GEOMETRY_TOOLS.includes(activeTool)) { setActiveTool('adjust'); setActionItems([]); }
     if (!history.length) return;
     const previous = history[history.length - 1];
     setFuture((current) => [takeSnapshot(), ...current]);
@@ -190,6 +215,7 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
   };
 
   const redo = () => {
+    if (GEOMETRY_TOOLS.includes(activeTool)) { setActiveTool('adjust'); setActionItems([]); }
     if (!future.length) return;
     const next = future[0];
     setHistory((current) => [...current, takeSnapshot()]);
@@ -198,6 +224,8 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
   };
 
   const updateOutputSize = (nextSize) => {
+    try { validateDimensions(nextSize.width, nextSize.height); } catch (cause) { setLoadError(cause.message); return; }
+    setLoadError('');
     recordHistory('output-size');
     setDraftBlob(null);
     customSizeRef.current = true;
@@ -341,7 +369,7 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
     setSaving(true);
     try {
       const blob = await currentBlob();
-      onSave([{ item: workingItem, blob, name: workingItem.name }]);
+      await onSave([{ item: workingItem, blob, name: workingItem.name }]);
       leave();
     } catch {
       setLoadError('No se pudo guardar la imagen. Prueba con un tamaño menor.');
@@ -349,18 +377,19 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
     }
   };
 
+  const geometryActive = GEOMETRY_TOOLS.includes(activeTool) && actionItems.length > 0;
   return (
     <dialog ref={dialogRef} className="editor-shell individual-editor" aria-labelledby="individual-title" onCancel={(event) => { event.preventDefault(); if (!saving && !actionBusy) onBack(); }}>
       <header className="editor-header">
         <h2 id="individual-title" title={workingItem.name}>{workingItem.name}</h2>
         <div className="header-action-group editor-navigation" role="group" aria-label="Navegación entre imágenes">
-          <button className="icon-button" onClick={() => saveEdits(activeIndex - 1)} disabled={activeIndex === 0 || saving || actionBusy || !source} aria-label="Imagen anterior" title="Guardar y pasar a la imagen anterior"><ChevronLeft /></button>
+          <button className="icon-button" onClick={() => saveEdits(activeIndex - 1)} disabled={activeIndex === 0 || saving || actionBusy || geometryActive || !source} aria-label="Imagen anterior" title="Guardar y pasar a la imagen anterior"><ChevronLeft /></button>
           <span>{activeIndex + 1}/{items.length}</span>
-          <button className="icon-button" onClick={() => saveEdits(activeIndex + 1)} disabled={activeIndex === items.length - 1 || saving || actionBusy || !source} aria-label="Imagen siguiente" title="Guardar y pasar a la imagen siguiente"><ChevronRight /></button>
+          <button className="icon-button" onClick={() => saveEdits(activeIndex + 1)} disabled={activeIndex === items.length - 1 || saving || actionBusy || geometryActive || !source} aria-label="Imagen siguiente" title="Guardar y pasar a la imagen siguiente"><ChevronRight /></button>
         </div>
         <div className="header-action-group editor-completion">
           <button className="icon-button" onClick={onBack} disabled={saving || actionBusy} aria-label="Cancelar edición" title="Cancelar edición"><X /></button>
-          <button className="primary-button save-image-button" onClick={() => saveEdits()} disabled={saving || actionBusy || !source} aria-label="Guardar edición" title="Guardar edición"><Check /></button>
+          <button className="primary-button save-image-button" onClick={() => saveEdits()} disabled={saving || actionBusy || geometryActive || !source} aria-label="Guardar edición" title={geometryActive ? 'Aplica o cancela el ajuste antes de guardar' : 'Guardar edición'}><Check /></button>
         </div>
       </header>
 
@@ -374,6 +403,7 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
           <button onClick={redo} disabled={!future.length || saving || actionBusy} aria-label="Rehacer" title="Rehacer"><Redo2 /></button>
         </nav>
 
+        {geometryActive ? <GeometryEditor key={activeTool} item={actionItems[0]} tool={activeTool} onApply={applyIndividualResults} onClose={() => { setActionItems([]); setActiveTool('adjust'); }} onBusy={setActionBusy} /> : <>
         <section className="canvas-workspace" aria-label="Vista previa de la imagen">
           <div className="workspace-meta">
             <span><FileImage size={16} /> {workingItem.name}</span>
@@ -394,7 +424,7 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
           </div>
           {loadError && <p className="workspace-error" role="alert">{loadError}</p>}
           <div className="file-strip" aria-label="Imágenes abiertas">
-            {items.map((file, index) => <div key={file.id} className={index === activeIndex ? 'active' : ''}><button onClick={() => { if (index !== activeIndex) saveEdits(index); }} disabled={saving || actionBusy || !source} title={index === activeIndex ? file.name : `Guardar y abrir ${file.name}`}><img src={file.url} alt="" /><span>{file.name}</span></button><button className="remove-file" onClick={() => removeItem(index)} aria-label={`Cerrar ${file.name}`}><X /></button></div>)}
+            {items.map((file, index) => <div key={file.id} className={index === activeIndex ? 'active' : ''}><button onClick={() => { if (index !== activeIndex) saveEdits(index); }} disabled={saving || actionBusy || !source} title={index === activeIndex ? file.name : `Guardar y abrir ${file.name}`}><img src={file.thumbnailUrl || file.url} alt="" /><span>{file.name}</span></button><button className="remove-file" onClick={() => removeItem(index)} aria-label={`Cerrar ${file.name}`}><X /></button></div>)}
             <input ref={addInputRef} className="sr-only" type="file" accept="image/*" multiple onChange={(event) => onAddFiles(Array.from(event.target.files || []))} />
             <button className="add-file" onClick={() => addInputRef.current?.click()}><Upload size={18} /> Añadir</button>
           </div>
@@ -408,6 +438,7 @@ export default function Editor({ items, setItems, setSelectedIds, activeIndex, s
           <button className="reset-button" disabled={!source || actionBusy || saving} onClick={() => { recordHistory(); setSettings(initialSettings); customSizeRef.current = false; setOutputSize({ width: source.naturalWidth, height: source.naturalHeight }); setPrivacyAreas([]); setAnnotations([]); setSelectedAnnotationId(null); setSelectedArea(0); }}><RotateCcw size={16} /> Restablecer ajustes</button>
           {item.originalUrl && <button className="reset-button" disabled={!source || actionBusy || saving} onClick={restoreDraftOriginal}><RotateCcw size={16} /> Restaurar original</button>}
         </aside>
+        </>}
       </main>
       <div className="export-feedback" role={exportStatus === 'error' ? 'alert' : 'status'} aria-live="polite">
         {exportStatus === 'success' && <><Check size={18} /> Imagen descargada. El original sigue intacto.</>}
