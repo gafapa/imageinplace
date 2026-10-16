@@ -1,4 +1,5 @@
 import { validateDimensions } from './imageLimits.js';
+import { clipPrivacyArea, privacyAreaToView } from './privacyGeometry.js';
 import { applyColorSteps, blurImageData, canvasFilterSupported, colorSteps } from './colorFilters.js';
 
 export const initialSettings = {
@@ -129,7 +130,9 @@ export function renderImage(source, canvas, settings, outputSize, privacyAreas) 
     snapshot.width = canvas.width;
     snapshot.height = canvas.height;
     snapshot.getContext('2d').drawImage(canvas, 0, 0);
-    privacyAreas.forEach((area) => {
+    privacyAreas.forEach((sourceArea) => {
+      const area = clipPrivacyArea(privacyAreaToView(sourceArea, crop, source.naturalWidth, source.naturalHeight, settings.rotation, settings.flipX));
+      if (area.width <= 0 || area.height <= 0) return;
       const x = area.x * canvas.width;
       const y = area.y * canvas.height;
       const width = area.width * canvas.width;

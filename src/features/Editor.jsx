@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Columns2, Redo2, RotateCcw, Undo2, X, ZoomIn, ZoomOut } from 'lucide-react';
-import { initialSettings, clamp, formatBytes, loadImage, renderImage, saveFormatFor, settingsFor, SAVE_QUALITY } from './imageEngine';
+import { initialSettings, clamp, formatBytes, getCrop, loadImage, renderImage, saveFormatFor, settingsFor, SAVE_QUALITY } from './imageEngine';
+import { clipPrivacyArea, privacyAreaToSource, privacyAreaToView } from './privacyGeometry';
 import GeometryEditor from './GeometryEditor';
 import AnnotationsPanel from './AnnotationsPanel';
 import { renderAnnotations } from './annotations';
@@ -298,8 +299,11 @@ export default function Editor({ items, activeIndex, setActiveIndex, onBack, onS
     setDrawing((current) => ({ ...current, end: pointerPosition(event) }));
   };
 
+  const areaInSource = (area) => privacyAreaToSource(area, getCrop(settings, source.naturalWidth, source.naturalHeight), source.naturalWidth, source.naturalHeight, settings.rotation, settings.flipX);
+  const areaInView = (area) => source ? clipPrivacyArea(privacyAreaToView(area, getCrop(settings, source.naturalWidth, source.naturalHeight), source.naturalWidth, source.naturalHeight, settings.rotation, settings.flipX)) : area;
+
   const finishPrivacyArea = () => {
-    if (!drawing) return;
+    if (!drawing || !source) return;
     const area = {
       x: Math.min(drawing.start.x, drawing.end.x),
       y: Math.min(drawing.start.y, drawing.end.y),
@@ -308,7 +312,7 @@ export default function Editor({ items, activeIndex, setActiveIndex, onBack, onS
     };
     if (area.width > 0.01 && area.height > 0.01) {
       recordHistory();
-      setPrivacyAreas((current) => [...current, { ...area, mode: 'pixelate' }]);
+      setPrivacyAreas((current) => [...current, areaInSource({ ...area, mode: 'pixelate' })]);
       setSelectedArea(privacyAreas.length);
     }
     setDrawing(null);
@@ -322,22 +326,25 @@ export default function Editor({ items, activeIndex, setActiveIndex, onBack, onS
   } : null;
 
   const addPrivacyArea = () => {
+    if (!source) return;
     const area = { x: 0.35, y: 0.35, width: 0.3, height: 0.3, mode: 'pixelate' };
     recordHistory();
-    setPrivacyAreas((current) => [...current, area]);
+    setPrivacyAreas((current) => [...current, areaInSource(area)]);
     setSelectedArea(privacyAreas.length);
   };
 
   const updateSelectedPrivacyArea = (key, value) => {
+    if (!source) return;
     recordHistory(`area:${selectedArea}:${key}`);
     setPrivacyAreas((current) => current.map((area, index) => {
       if (index !== selectedArea) return area;
-      const next = { ...area, [key]: value };
+      if (key === 'mode') return { ...area, mode: value };
+      const next = { ...areaInView(area), [key]: value };
       next.width = clamp(next.width, 0.05, 1 - next.x);
       next.height = clamp(next.height, 0.05, 1 - next.y);
       next.x = clamp(next.x, 0, 1 - next.width);
       next.y = clamp(next.y, 0, 1 - next.height);
-      return next;
+      return areaInSource(next);
     }));
   };
 
@@ -374,7 +381,7 @@ export default function Editor({ items, activeIndex, setActiveIndex, onBack, onS
   const addDetectedAreas = (boxes, mode) => {
     recordHistory();
     setDraftBlob(null);
-    setPrivacyAreas((current) => [...current, ...boxes.map((box) => ({ ...box, mode }))]);
+    setPrivacyAreas((current) => [...current, ...boxes.map((box) => areaInSource({ ...box, mode }))]);
     setSelectedArea(privacyAreas.length);
   };
   const detectionActions = {
@@ -457,7 +464,7 @@ export default function Editor({ items, activeIndex, setActiveIndex, onBack, onS
       ? <RenamePanel items={actionItems} allItems={items} onRename={applyIndividualRename} onClose={closePanel} />
       : ActionPanel
         ? <ActionPanel items={actionItems} allItems={items} onApply={applyIndividualResults} onClose={closePanel} onBusy={setActionBusy} />
-        : <ToolPanel onVisualCrop={() => chooseTool('visualcrop')} {...{ activeTool, settings, setSetting, outputSize, setOutputSize: updateOutputSize, aspectLocked, setAspectLocked, source, privacyAreas, selectedArea, setSelectedArea, addPrivacyArea, updatePrivacyArea: updateSelectedPrivacyArea, deletePrivacyArea, estimatedSize, detection: detectionActions }} />;
+        : <ToolPanel onVisualCrop={() => chooseTool('visualcrop')} {...{ activeTool, settings, setSetting, outputSize, setOutputSize: updateOutputSize, aspectLocked, setAspectLocked, source, privacyAreas: privacyAreas.map(areaInView), selectedArea, setSelectedArea, addPrivacyArea, updatePrivacyArea: updateSelectedPrivacyArea, deletePrivacyArea, estimatedSize, detection: detectionActions }} />;
   const zoomBy = (direction) => setZoom((current) => {
     if (current === 'fit') return direction > 0 ? 1 : 0.5;
     return ZOOM_STEPS[ZOOM_STEPS.indexOf(current) + direction] ?? current;

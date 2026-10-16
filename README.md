@@ -137,3 +137,11 @@ The existing `node scripts/capture.mjs` regression suite uses the development se
 Recovery has one writer per browser origin, protected by a Web Lock. A second open tab cannot overwrite the recoverable workspace and displays an explicit warning. Close the writer tab and toggle recovery again to transfer ownership. Browsers without Web Locks can still save local project files; automatic recovery is disabled. Turning recovery off synchronizes the preference across tabs and deletes the stored project. Pending encodes recheck their generation and preference before writing; local writes and deletion are serialized. A deletion error asks the user to clear site storage.
 
 The offline indicator covers the application shell, editing and export. AI, OCR and HEIC resources must be used online once before offline use; they are downloaded only when needed. Cache Storage errors do not discard successful network downloads. Privacy detection results are invalidated when the draft source, image settings or output dimensions change.
+
+### Privacy transforms and decoder limits
+
+Editable privacy rectangles are stored in normalized source-image coordinates. Rotation, reflection, crop and resize project them into the current output; cropping does not discard zones outside the view. Pointer input, keyboard controls and face/OCR suggestions are mapped back into source coordinates. Undo/redo retains these source rectangles, and applying a rendered geometry operation bakes the protected pixels into the staged draft.
+
+The HEIC worker validates dimensions before allocating its RGBA buffer and frees decoder resources on success or failure. Native images rejected by the dimension limit do not retry with a second decoder. OCR progress belongs to the current request; worker reuse, cancellation and language changes cannot send progress to a previous request or let a cancelled initialization replace the current worker.
+
+The privacy-transform browser regression checks rotated/reflected/cropped masks, undo/redo, masks created after a transform, exported pixels and saved drafts in Chromium and WebKit. Decoder-boundary and OCR ownership regressions use controlled substitutes without real personal information or large memory allocations.

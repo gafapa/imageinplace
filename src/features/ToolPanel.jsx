@@ -7,7 +7,7 @@ function RangeControl({ label, value, min, max, unit = '%', onChange }) {
   return (
     <label className="range-control">
       <span><strong>{label}</strong><output>{value}{unit}</output></span>
-      <input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} />
+      <input type="range" aria-label={label} min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} />
     </label>
   );
 }
@@ -182,4 +182,3 @@ export default function ToolPanel({ onVisualCrop, activeTool, settings, setSetti
 function PanelHeader({ title, description }) {
   return <div className="panel-header"><h2>{title}</h2><p>{description}</p></div>;
 }
-

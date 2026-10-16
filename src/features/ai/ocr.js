@@ -6,6 +6,8 @@ export const OCR_LANGUAGES = { es: 'spa', en: 'eng', ca: 'cat', gl: 'glg', eu: '
 
 let workerPromise = null;
 let workerLanguages = '';
+let workerGeneration = 0;
+let activeRequest = null;
 
 /** Spanish and English always, plus the interface language when it is another supported one. */
 export function ocrLanguagesFor(locale = 'es') {
@@ -13,11 +15,13 @@ export function ocrLanguagesFor(locale = 'es') {
   return [...new Set(['spa', 'eng', extra].filter(Boolean))].join('+');
 }
 
-async function getWorker(languages, onProgress) {
+function getWorker(languages) {
   if (workerPromise && workerLanguages === languages) return workerPromise;
-  if (workerPromise) (await workerPromise.catch(() => null))?.terminate();
+  const previous = workerPromise;
+  previous?.then((worker) => worker.terminate()).catch(() => {});
+  const generation = ++workerGeneration;
   workerLanguages = languages;
-  workerPromise = import('tesseract.js').then(({ createWorker }) => createWorker(languages, 1, {
+  const promise = import('tesseract.js').then(({ createWorker }) => createWorker(languages, 1, {
     workerPath: `${BASE}/worker.min.js`,
     corePath: `${BASE}/core`,
     langPath: `${BASE}/lang`,
@@ -25,14 +29,25 @@ async function getWorker(languages, onProgress) {
     // The service worker already caches the language files; do not keep a second copy in IndexedDB.
     cacheMethod: 'none',
     gzip: true,
-    logger: (message) => onProgress?.(message),
-  })).catch((cause) => { workerPromise = null; throw cause; });
-  return workerPromise;
+    logger: (message) => {
+      if (generation === workerGeneration && !activeRequest?.controller.signal.aborted) activeRequest?.onProgress?.(message);
+    },
+  })).catch((cause) => {
+    // A cancelled initialization must not discard the replacement worker.
+    if (workerPromise === promise) workerPromise = null;
+    throw cause;
+  });
+  workerPromise = promise;
+  return promise;
 }
 
 export async function stopOcr() {
+  const request = activeRequest;
+  activeRequest = null;
   const current = workerPromise;
   workerPromise = null;
+  workerGeneration += 1;
+  request?.controller.abort();
   (await current?.catch(() => null))?.terminate();
 }
 
@@ -42,13 +57,24 @@ export async function stopOcr() {
  */
 export async function recognizeLines(canvas, { locale = 'es', signal, onProgress } = {}) {
   signal?.throwIfAborted();
-  const abort = () => stopOcr();
+  activeRequest?.controller.abort();
+  const request = { controller: new AbortController(), onProgress };
+  activeRequest = request;
+  const abort = () => request.controller.abort();
+  let cancel;
+  const cancelled = new Promise((_, reject) => {
+    cancel = () => {
+      if (activeRequest === request) void stopOcr().catch(() => {});
+      reject(new DOMException(t('Operación cancelada.'), 'AbortError'));
+    };
+    request.controller.signal.addEventListener('abort', cancel, { once: true });
+  });
   signal?.addEventListener('abort', abort, { once: true });
   try {
-    const worker = await getWorker(ocrLanguagesFor(locale), onProgress);
-    signal?.throwIfAborted();
-    const { data } = await worker.recognize(canvas, {}, { blocks: true, text: false });
-    signal?.throwIfAborted();
+    const worker = await Promise.race([getWorker(ocrLanguagesFor(locale)), cancelled]);
+    request.controller.signal.throwIfAborted();
+    const { data } = await Promise.race([worker.recognize(canvas, {}, { blocks: true, text: false }), cancelled]);
+    request.controller.signal.throwIfAborted();
     const lines = [];
     for (const block of data.blocks || []) {
       for (const paragraph of block.paragraphs || []) {
@@ -65,7 +91,11 @@ export async function recognizeLines(canvas, { locale = 'es', signal, onProgress
     }
     return lines;
   } catch (cause) {
-    if (signal?.aborted) throw new DOMException(t('Operación cancelada.'), 'AbortError');
+    if (request.controller.signal.aborted) throw new DOMException(t('Operación cancelada.'), 'AbortError');
     throw cause;
-  } finally { signal?.removeEventListener('abort', abort); }
+  } finally {
+    signal?.removeEventListener('abort', abort);
+    request.controller.signal.removeEventListener('abort', cancel);
+    if (activeRequest === request) activeRequest = null;
+  }
 }

@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "node scripts/features.mjs && node scripts/history-editor.mjs && node scripts/workflow-print.mjs && node scripts/individual-actions.mjs && node scripts/review-fixes.mjs && node scripts/background-trim.mjs && node scripts/project-safety.mjs && node scripts/geometry-offline.mjs && node scripts/offline-lifecycle.mjs && node scripts/usability.mjs && node scripts/on-device-ai.mjs && node scripts/audit-fixes.mjs",
+    "test:e2e": "node scripts/features.mjs && node scripts/history-editor.mjs && node scripts/workflow-print.mjs && node scripts/individual-actions.mjs && node scripts/review-fixes.mjs && node scripts/background-trim.mjs && node scripts/project-safety.mjs && node scripts/geometry-offline.mjs && node scripts/offline-lifecycle.mjs && node scripts/usability.mjs && node scripts/on-device-ai.mjs && node scripts/audit-fixes.mjs && node scripts/privacy-transforms.mjs",
     "check": "npm run lint && npm test && npm run build"
   },
   "dependencies": {
