@@ -3,7 +3,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import { createHash } from 'node:crypto';
 
-await mkdir('.impeccable/review/features', { recursive: true });
+await mkdir('artifacts/browser/features', { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const errors = [];
@@ -64,7 +64,7 @@ try {
   const downloaded = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Guardar proyecto', exact: true }).click();
   const download = await downloaded;
-  const path = '.impeccable/review/features/roundtrip.iip';
+  const path = 'artifacts/browser/features/roundtrip.iip';
   await download.saveAs(path);
   await page.getByRole('status').filter({ hasText: 'Proyecto preparado' }).waitFor();
   assert.equal(await wouldWarn(), false);
@@ -123,7 +123,7 @@ try {
   assert.ok((await page.getByRole('button', { name: 'Abrir proyecto', exact: true }).boundingBox()).width >= 200, 'Mobile menu actions must use the available menu width');
   const menuBounds = await page.locator('.project-menu-actions').boundingBox();
   assert.ok(menuBounds.x >= 0 && menuBounds.x + menuBounds.width <= 390, 'Project menu must remain inside the mobile viewport');
-  await page.screenshot({ path: '.impeccable/review/features/project-mobile.png' });
+  await page.screenshot({ path: 'artifacts/browser/features/project-mobile.png' });
   // Cancel after the first image completes: no part of a two-image batch may commit.
   await page.getByLabel('Proyecto local', { exact: true }).click();
   await page.setViewportSize({ width: 1440, height: 900 });

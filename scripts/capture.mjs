@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 
 const testUrl = process.env.TEST_URL || 'http://127.0.0.1:4173';
-const outputDirectory = '.impeccable/review';
+const outputDirectory = 'artifacts/browser';
 await mkdir(outputDirectory, { recursive: true });
 
 async function assertNoGlobalScroll(page, label) {

@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { detectLocale, loadLocale, t, tn } from './index.js';
+import { currentLocale, detectLocale, loadLocale, t, tn } from './index.js';
 import { extractKeys, placeholders } from './keys.js';
 import gl from './gl.json';
 import ca from './ca.json';
@@ -53,6 +53,13 @@ describe('t and tn', () => {
     await loadLocale('en');
     expect(tn(2, '{n} imagen', '{n} imágenes')).toBe('2 images');
   });
+  it('keeps the latest language when an earlier dictionary finishes later', async () => {
+    const earlier = loadLocale('gl');
+    await loadLocale('es');
+    await earlier;
+    expect(currentLocale()).toBe('es');
+    expect(t('Añadir imágenes')).toBe('Añadir imágenes');
+  });
 });
 
 describe('detectLocale', () => {
@@ -62,5 +69,11 @@ describe('detectLocale', () => {
     expect(detectLocale(storage(null), ['fr-FR', 'ca-ES'])).toBe('ca');
     expect(detectLocale(storage('xx'), ['gl'])).toBe('gl');
     expect(detectLocale(storage(null), ['fr', 'de'])).toBe('es');
+  });
+  it('survives a blocked localStorage getter before the first render', () => {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, get() { throw new DOMException('Blocked', 'SecurityError'); } });
+    try { expect(detectLocale(undefined, ['en-GB'])).toBe('en'); }
+    finally { if (descriptor) Object.defineProperty(globalThis, 'localStorage', descriptor); else delete globalThis.localStorage; }
   });
 });

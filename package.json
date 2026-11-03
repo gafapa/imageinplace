@@ -12,19 +12,22 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "node scripts/features.mjs && node scripts/history-editor.mjs && node scripts/workflow-print.mjs && node scripts/individual-actions.mjs && node scripts/review-fixes.mjs && node scripts/background-trim.mjs && node scripts/project-safety.mjs && node scripts/geometry-offline.mjs && node scripts/offline-lifecycle.mjs && node scripts/usability.mjs && node scripts/on-device-ai.mjs && node scripts/audit-fixes.mjs && node scripts/privacy-transforms.mjs",
-    "check": "npm run lint && npm test && npm run build"
+    "test:advanced": "node scripts/advanced-features.mjs",
+    "test:e2e": "node scripts/features.mjs && node scripts/history-editor.mjs && node scripts/workflow-print.mjs && node scripts/individual-actions.mjs && node scripts/review-fixes.mjs && node scripts/background-trim.mjs && node scripts/project-safety.mjs && node scripts/geometry-offline.mjs && node scripts/offline-lifecycle.mjs && node scripts/usability.mjs && node scripts/on-device-ai.mjs && node scripts/audit-fixes.mjs && node scripts/privacy-transforms.mjs && node scripts/security-regressions.mjs && node scripts/offline-page-audit.mjs",
+    "check": "npm run lint && npm test && npm run build",
+    "test:security": "node scripts/security-regressions.mjs && node scripts/offline-page-audit.mjs"
   },
   "dependencies": {
     "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
+    "@jsquash/avif": "2.1.1",
     "exifr": "^7.1.3",
     "jszip": "^3.10.2",
     "libheif-js": "^1.23.5",
-    "lucide-react": "^1.48.0",
-    "onnxruntime-web": "^1.30.0",
+    "lucide-react": "^1.66.0",
+    "onnxruntime-web": "^1.31.1",
     "pdf-lib": "^1.17.1",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "tesseract.js": "^7.0.0",
     "tesseract.js-core": "^7.0.0"
   },
@@ -35,16 +38,19 @@
     "@tesseract.js-data/eus": "^1.0.0",
     "@tesseract.js-data/glg": "^1.0.0",
     "@tesseract.js-data/spa": "^1.0.0",
-    "@vitejs/plugin-react": "^6.1.1",
-    "eslint": "^10.11.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
-    "globals": "^17.12.0",
-    "playwright": "^1.63.0",
-    "vite": "^8.3.1",
-    "vitest": "^5.0.2"
+    "globals": "^17.14.0",
+    "playwright": "^1.64.1",
+    "vite": "^8.3.5",
+    "vitest": "^5.1.0"
   },
   "engines": {
     "node": ">=20.19"
+  },
+  "overrides": {
+    "minimatch": "^11.0.1"
   }
 }

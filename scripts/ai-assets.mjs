@@ -31,15 +31,22 @@ export function aiAssets() {
     configResolved(config) { root = config.root; },
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
-        const path = decodeURIComponent((request.url || '').split('?')[0]).replace(/^\//, '');
-        const source = AI_VENDOR_FILES[path];
-        if (!source) { next(); return; }
-        const file = resolve(root, source);
-        const { size } = await stat(file);
-        const extension = Object.keys(CONTENT_TYPES).find((suffix) => path.endsWith(suffix));
-        response.setHeader('Content-Type', CONTENT_TYPES[extension] || 'application/octet-stream');
-        response.setHeader('Content-Length', size);
-        createReadStream(file).pipe(response);
+        let path;
+        try { path = decodeURIComponent((request.url || '').split('?')[0]).replace(/^\//, ''); }
+        catch { response.statusCode = 400; response.end('Invalid URL'); return; }
+        // Only shipped entries are routable; inherited object properties are not asset paths.
+        if (!Object.hasOwn(AI_VENDOR_FILES, path)) { next(); return; }
+        try {
+          const file = resolve(root, AI_VENDOR_FILES[path]);
+          const { size } = await stat(file);
+          const extension = Object.keys(CONTENT_TYPES).find((suffix) => path.endsWith(suffix));
+          response.setHeader('Content-Type', CONTENT_TYPES[extension] || 'application/octet-stream');
+          response.setHeader('Content-Length', size);
+          const stream = createReadStream(file);
+          stream.on('error', next);
+          response.on('close', () => stream.destroy());
+          stream.pipe(response);
+        } catch (cause) { next(cause); }
       });
     },
     async generateBundle() {

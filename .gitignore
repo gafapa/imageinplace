@@ -1,7 +1,8 @@
 .aider*
 node_modules/
 dist/
-.impeccable/review/
+artifacts/
+.impeccable/
 *.log
 .DS_Store
 .vite/

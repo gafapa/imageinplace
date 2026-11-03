@@ -29,6 +29,9 @@ export const toolGroups = [
 
 // `short` labels sit under the rail icons; `label` is the full accessible name and panel title.
 export const tools = [
+  { id: 'restore', group: 'adjust', get short() { return t('Reparar'); }, get label() { return t('Reparar imagen'); }, get description() { return t('Polvo, ruido, nitidez y tonos'); }, icon: Eraser },
+  { id: 'intelligence', group: 'adjust', get short() { return t('Sugerencias'); }, get label() { return t('Sugerencias locales'); }, get description() { return t('Analiza luz, contraste y color'); }, icon: Sparkles },
+  { id: 'upscale', group: 'adjust', get short() { return t('Ampliar'); }, get label() { return t('Ampliar 2× / 4×'); }, get description() { return t('Interpolación local de alta calidad'); }, icon: Maximize2 },
   { id: 'adjust', group: 'adjust', get short() { return t('Mejorar'); }, get label() { return t('Mejorar'); }, get description() { return t('Luz, color y nitidez'); }, icon: SlidersHorizontal },
   { id: 'resize', group: 'adjust', get short() { return t('Tamaño'); }, get label() { return t('Tamaño'); }, get description() { return t('Medidas exactas'); }, icon: Maximize2 },
   { id: 'rotate', group: 'adjust', get short() { return t('Girar'); }, get label() { return t('Girar'); }, get description() { return t('Gira o refleja'); }, icon: RotateCw },
@@ -51,6 +54,9 @@ export const tools = [
 
 // The gallery toolbar shows the frequent tools in `section` order; `more` tools live in its "Más" menu.
 export const batchTools = [
+  { id: 'restore', more: true, get short() { return t('Reparar'); }, get label() { return t('Reparar imagen'); }, icon: Eraser },
+  { id: 'intelligence', more: true, get short() { return t('Sugerencias'); }, get label() { return t('Sugerencias locales'); }, icon: Sparkles },
+  { id: 'upscale', more: true, get short() { return t('Ampliar'); }, get label() { return t('Ampliar 2× / 4×'); }, icon: Maximize2 },
   { id: 'adjust', section: 'edit', get short() { return t('Mejorar'); }, get label() { return t('Mejorar imágenes seleccionadas'); }, icon: SlidersHorizontal },
   { id: 'resize', section: 'edit', get short() { return t('Tamaño'); }, get label() { return t('Cambiar tamaño de imágenes seleccionadas'); }, icon: Maximize2 },
   { id: 'crop', section: 'edit', get short() { return t('Recortar'); }, get label() { return t('Recortar imágenes seleccionadas'); }, icon: Crop },

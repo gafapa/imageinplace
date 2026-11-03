@@ -5,6 +5,7 @@ import Gallery from './features/Gallery';
 import BrandMark from './features/BrandMark';
 import ProjectControls from './features/ProjectControls';
 import LanguageSelect from './features/LanguageSelect';
+import PageAudit from './features/PageAudit.jsx';
 import CompareDialog from './features/CompareDialog';
 import { openProject, saveProject } from './features/project';
 import { inspectImage, releaseItems, validateWorkspace, MAX_FILE_BYTES } from './features/imageLimits';
@@ -345,7 +346,7 @@ export default function App() {
   // Re-rendering App re-renders every component, so t() picks up the new dictionary everywhere.
   const [locale, setLocale] = useState(currentLocale);
   const changeLocale = async (id) => { try { setLocale(await loadLocale(id, { remember: true })); } catch { setError(t('No se pudo cargar el idioma. Comprueba la conexión.')); } };
-  const projectControls = <><LanguageSelect value={locale} onChange={changeLocale} disabled={batchBusy || ioBusy} /><ProjectControls busy={batchBusy || ioBusy} hasItems={!!items.length} onOpen={handleOpenProject} onSave={handleSaveProject} recoveryEnabled={recoveryEnabled} recoveryAvailable={recoveryWriter} onToggleRecovery={toggleRecovery} /></>;
+  const projectControls = <><PageAudit /><LanguageSelect value={locale} onChange={changeLocale} disabled={batchBusy || ioBusy} /><ProjectControls busy={batchBusy || ioBusy} hasItems={!!items.length} onOpen={handleOpenProject} onSave={handleSaveProject} recoveryEnabled={recoveryEnabled} recoveryAvailable={recoveryWriter} onToggleRecovery={toggleRecovery} /></>;
   const recoverSession = () => { if (storedSession) handleOpenProject(storedSession.blob, { recovering: true }); };
   const discardSession = () => {
     if (!recoveryRelease.current) {

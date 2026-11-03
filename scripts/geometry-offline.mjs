@@ -3,7 +3,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import { PDFDocument } from 'pdf-lib';
 
-await mkdir('.impeccable/review/features', { recursive: true });
+await mkdir('artifacts/browser/features', { recursive: true });
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await context.newPage();
@@ -40,7 +40,7 @@ try {
   await open(); await tool('Enderezar');
   await editor.getByLabel('Ángulo exacto (°)').fill('10');
   await editor.getByRole('status').filter({ hasText: 'Resultado: 661 × 499 px' }).waitFor();
-  await page.screenshot({ path: '.impeccable/review/features/deskew-desktop.png' });
+  await page.screenshot({ path: 'artifacts/browser/features/deskew-desktop.png' });
   await tool('Aplicar enderezado');
   await page.waitForFunction(() => !document.querySelector('.geometry-controls'));
   await tool('Deshacer');
@@ -58,7 +58,7 @@ try {
   assert.equal(await editor.getByLabel('Izquierda (%)').inputValue(), '10.5');
   await editor.getByLabel('Izquierda (%)').fill('10');
   await editor.getByLabel('Ancho (%)').fill('80');
-  await page.screenshot({ path: '.impeccable/review/features/crop-desktop.png' });
+  await page.screenshot({ path: 'artifacts/browser/features/crop-desktop.png' });
   await tool('Aplicar recorte'); await page.waitForFunction(() => !document.querySelector('.geometry-controls'));
   await tool('Guardar cambios'); await editor.waitFor({ state: 'detached' });
   assert.deepEqual(await fullInfo(), { width: 480, height: 320, center: [208, 32, 48, 255], corner: [208, 32, 48, 255] });
@@ -78,7 +78,7 @@ try {
     await editor.getByLabel('Horizontal (%)').fill(String(x)); await editor.getByLabel('Vertical (%)').fill(String(y));
   }
   await editor.getByRole('status').filter({ hasText: 'Resultado: 480 × 320 px' }).waitFor();
-  await page.screenshot({ path: '.impeccable/review/features/perspective-desktop.png' });
+  await page.screenshot({ path: 'artifacts/browser/features/perspective-desktop.png' });
   await tool('Corregir perspectiva'); await page.waitForFunction(() => !document.querySelector('.geometry-controls'));
   await tool('Guardar cambios'); await editor.waitFor({ state: 'detached' });
   assert.deepEqual(await fullInfo(), { width: 480, height: 320, center: [208, 32, 48, 255], corner: [208, 32, 48, 255] });
@@ -96,7 +96,7 @@ try {
   await page.mouse.move(move.x + move.width / 2 + 10, move.y + move.height / 2 + 5); await page.mouse.up();
   assert.ok(Number(await editor.getByLabel('Izquierda (%)').inputValue()) > 10);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-  await page.screenshot({ path: '.impeccable/review/features/crop-mobile.png' });
+  await page.screenshot({ path: 'artifacts/browser/features/crop-mobile.png' });
   assert.notEqual(await editor.getByRole('button', { name: 'Restablecer selección', exact: true }).evaluate((button) => getComputedStyle(button).fontSize), '0px');
   await tool('Descartar'); await editor.waitFor({ state: 'detached' });
   const cacheEntries = await page.evaluate(async () => {
@@ -126,4 +126,4 @@ try {
   const bytes = await readFile(await (await projectDownload).path()); assert.equal(bytes.subarray(0, 8).toString(), 'IIPROJ02');
   assert.deepEqual(errors, []);
   console.log('Geometry checks passed: pixel output, fine rotation, draft history/save/cancel, keyboard, pointer, mobile, offline reload, workers, PDF, ZIP and hashed project export.');
-} catch (cause) { await page.screenshot({ path: '.impeccable/review/features/geometry-failure.png' }); console.log('Geometry failure UI:', await page.locator('body').innerText(), errors); throw cause; } finally { await browser.close(); }
+} catch (cause) { await page.screenshot({ path: 'artifacts/browser/features/geometry-failure.png' }); console.log('Geometry failure UI:', await page.locator('body').innerText(), errors); throw cause; } finally { await browser.close(); }

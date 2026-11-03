@@ -1,6 +1,6 @@
 # Image in Place
 
-Image in Place is a privacy-first image toolbox designed for teachers and useful for everyone. Images are processed entirely in the browser with the Canvas API; there is no backend and files are never uploaded.
+Image in Place is a privacy-first image toolbox designed for teachers and useful for everyone. Images are processed entirely in the browser with Canvas and WebAssembly; there is no backend and files are never uploaded. The separate public-page analyzer makes credential-free requests to the page and image URLs supplied by the user; it cannot access editor files.
 
 ## Current tools
 
@@ -54,10 +54,29 @@ Image in Place is a privacy-first image toolbox designed for teachers and useful
 - Local multipage A4 PDF sheets with configurable grid, margins, gaps, title, and filename captions
 - Named reusable workflows stored locally: resize, crop, rotate, watermark, output format, and rename
 
+## Restoration, analysis, and web export
+
+- **Repair image** is available in the individual editor and in the gallery's **More** menu. It offers isolated-dust removal with a 3×3 median, edge-aware noise smoothing, thresholded sharpening, percentile-based faded-tone recovery, exposure, and color controls. A reduced preview shows the first selected image. Full-resolution processing runs in a cancellable local worker; batch results are committed together. These filters can soften or alter real detail. Sharpening improves apparent clarity but cannot reconstruct lost detail or reliably reverse motion blur.
+- **Local suggestions** analyzes visible pixels for luminance, the 1st–99th percentile tonal range, color spread, and adjacent-pixel differences. It previews suggested exposure, tonal recovery, color, and sharpening settings. Applying a batch analyzes each image separately. This is deterministic image analysis, not a generative model or a diagnostic guarantee.
+- **Upscale 2× / 4×** uses high-quality browser interpolation with optional sharpening. It does not synthesize missing details with AI. Output must remain within 40 megapixels and 10,000 pixels per side. Individual drafts and gallery changes retain their existing Cancel, Save, and undo behavior.
+- **AVIF** export uses the bundled, single-threaded `@jsquash/avif` WebAssembly encoder in a dedicated worker. No CDN or remote encoder is used. Its WASM binary is cached on first use, following the existing offline asset policy.
+- **Smallest file** encodes AVIF, supported WebP, JPEG, and PNG at the selected quality, then chooses the smallest actual blob. JPEG is excluded when any pixel is not fully opaque. Unsupported native WebP encoding is excluded instead of accepting the browser's PNG fallback. AVIF errors are reported rather than silently omitting that candidate. Quality percentages across codecs are not perceptually equivalent; inspect the exported result. Automatic batches may contain different formats, with filenames matching the actual bytes. AVIF and automatic sizes are measured on export to avoid repeated expensive encoding during editing.
+- **Analyze web page** opens a separate opaque-origin sandbox. It requests only the user-provided public HTTPS page and up to 100 unique image URLs from `src`, `data-src`, and `srcset`, including picture sources. It reports formats, downloaded bytes, decoded raster dimensions, missing `alt` attributes, potential lazy-loading opportunities, and JPEG/PNG candidates for modern formats. An empty `alt` attribute is valid decorative markup and is not flagged as missing. HTML stays inert; page scripts and styles never run. CSS backgrounds and images produced by JavaScript are outside this static analysis.
+
+### Public URL access and deployment
+
+The web-page audit is the only tool that intentionally contacts external sites. The destination receives normal requests for its page and images. Requests omit credentials and referrers, reject redirects, and accept only public-looking HTTPS hostnames. Numeric hosts, IPv6 literals, local names, credentials, and nonstandard ports are rejected; a browser-only tool cannot prove that a public-looking DNS name never resolves to a private address. No editor images, project files, or recovery storage are accessible to the sandbox, and no proxy is used. The analyzer does not send image contents to any service.
+
+Opening the analyzer requires a connection: its opaque sandbox cannot use the parent app’s offline cache. When offline, an explicit notice keeps the editor available. Cross-origin reads require the destination to allow CORS, including the sandbox's opaque origin. When a page denies CORS, open a locally saved HTML file and supply its original page URL to resolve relative paths. Image metadata may still be unavailable if those images also deny CORS. The analyzer does not bypass authentication or browser access controls. Limits are 2 MiB HTML, 40 MiB per fetched image, 80 MiB downloaded per run, 100 images, and a two-minute request deadline; cancellation or closing the dialog stops its requests. Image decoding already in progress may finish first.
+
+The editor retains its original same-origin-only CSP. `public/page-audit.html` has its own restricted policy permitting HTTPS reads and is embedded with `sandbox="allow-scripts"`, without `allow-same-origin`. A production host that applies an additional global `connect-src 'self'` response header must give **only `/page-audit.html`** a matching audit policy (`default-src 'none'; script-src 'self'; style-src 'self'; connect-src https:; img-src blob:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'; sandbox allow-scripts`). Keep the editor's strict response header unchanged. Multiple CSP headers are intersected, so adding a second, permissive policy cannot override an existing restrictive one. The response policy must permit same-origin framing, and its sandbox directive also protects direct navigation. Remove any conflicting `X-Frame-Options: DENY` header for this path only. Without the path-specific header configuration, the host may block the entire iframe or its public page/image reads. Once framing is permitted, local HTML inventory works even when network reads remain blocked. This repository change does not publish or change production headers.
+
+Run `npm run test:advanced` against the development server on port 4180, or set `TEST_URL` to a production preview, to verify restoration, enlargement, local suggestions, real AVIF decoding, automatic ZIP transparency, the audit sandbox, and mobile layout using synthetic fixtures.
+
 ## Development
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -73,7 +92,20 @@ Lint, unit tests and build in one step:
 npm run check
 ```
 
-Requires Node 20.19+ (Vite 8).
+Requires Node 20.19+ (Vite 8). Use `npm ci` to install the locked dependency versions.
+
+## Project structure
+
+- `src/`: application, image-processing workers, translations, and unit tests.
+- `public/`: shipped icons, local AI models, third-party notices, and the isolated page analyzer.
+- `scripts/`: build plugins and maintained browser regressions.
+- `docs/`: testing guidance, repository maintenance, and historical review reports.
+- [PRODUCT.md](PRODUCT.md): product constraints and intended users.
+- [DESIGN.md](DESIGN.md): current visual and interaction conventions.
+- `artifacts/`, `dist/`, and `node_modules/`: ignored, reproducible local output.
+
+See [docs/MAINTENANCE.md](docs/MAINTENANCE.md) for cleanup boundaries.
+See [SECURITY.md](SECURITY.md) for data boundaries, hosting requirements, and dependency/security checks.
 
 ## Deployment
 
@@ -122,7 +154,7 @@ Service workers require HTTPS (localhost is allowed for development). Developmen
 
 ## Verification
 
-The expansion plan and acceptance criteria are in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md). Build first and serve the production output on port 4180 for stable feature checks:
+The supported regression suites and their coverage are listed in [docs/TESTING.md](docs/TESTING.md). Build first and serve the production output on port 4180 for stable feature checks:
 
 ```bash
 npm run build
@@ -130,7 +162,7 @@ npm run preview -- --host 127.0.0.1 --port 4180
 npm run test:e2e
 ```
 
-The existing `node scripts/capture.mjs` regression suite uses the development server on port 4173 by default (`TEST_URL` can override it). `scripts/usability.mjs` runs the colour adjustments in WebKit and Chromium and compares the pixels, and covers keyboard shortcuts, home tasks, session recovery, source-format export, editor number fields, mobile fit, language switching and the editor zoom and before/after view. `scripts/on-device-ai.mjs` checks HEIC import, AI background removal and face detection in Chromium and WebKit, OCR covering of personal data and the on-demand offline cache; it downloads two verified third-party sample files into `node_modules/.cache` on first run. The geometry/offline suite disables the network after installation and verifies reload, local perspective processing, lazily loaded PDF and ZIP exports, and hashed project export. Offline lifecycle checks cover waiting updates, preserved work, safe activation, unrelated caches, and rollback after incomplete installation. Project safety checks cover payload corruption and legacy-format compatibility. Browser screenshots and PDF test artifacts are written below `.impeccable/review`.
+The existing `node scripts/capture.mjs` regression suite uses the development server on port 4173 by default (`TEST_URL` can override it). `scripts/usability.mjs` runs the colour adjustments in WebKit and Chromium and compares the pixels, and covers keyboard shortcuts, home tasks, session recovery, source-format export, editor number fields, mobile fit, language switching and the editor zoom and before/after view. `scripts/on-device-ai.mjs` checks HEIC import, AI background removal and face detection in Chromium and WebKit, OCR covering of personal data and the on-demand offline cache; it downloads two verified third-party sample files into `node_modules/.cache` on first run. The geometry/offline suite disables the network after installation and verifies reload, local perspective processing, lazily loaded PDF and ZIP exports, and hashed project export. Offline lifecycle checks cover waiting updates, preserved work, safe activation, unrelated caches, and rollback after incomplete installation. Project safety checks cover payload corruption and legacy-format compatibility. Browser screenshots and PDF test artifacts are written below `artifacts/browser`.
 
 ### Recovery and offline reliability
 

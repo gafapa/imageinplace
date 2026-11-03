@@ -5,6 +5,8 @@ import ToolPanel from './ToolPanel';
 import { flattenForFormat } from './background';
 import { batchFormatFor, initialSettings, loadImage, getCrop, renderImage, saveFormatFor, SAVE_QUALITY } from './imageEngine';
 import { t, tn } from '../i18n/index.js';
+import { encodeWebImage } from './webExport.js';
+import { createRenames } from './rename.js';
 
 function getBatchSize(source, { action, settings, resizeMode, maxEdge, allowEnlarge }, preview = false) {
   const crop = getCrop(settings, source.naturalWidth, source.naturalHeight);
@@ -46,7 +48,8 @@ export default function BatchPanel({ action, items, onApply, onClose, onBusy, on
           const canvas = document.createElement('canvas');
           const size = getBatchSize(source, { action, settings, resizeMode, maxEdge, allowEnlarge }, true);
           renderImage(source, canvas, { ...settings, blur: settings.blur * size.width / (item.width || source.naturalWidth) }, size, []);
-          const blob = await new Promise((resolve) => canvas.toBlob(resolve, action === 'export' ? settings.format : 'image/png', settings.quality / 100));
+          const previewFormat = action === 'export' && ['image/jpeg', 'image/webp'].includes(settings.format) ? settings.format : 'image/png';
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, previewFormat, settings.quality / 100));
           if (!blob) throw new Error('Preview failed');
           const url = URL.createObjectURL(blob);
           created.push(url);
@@ -87,23 +90,15 @@ export default function BatchPanel({ action, items, onApply, onClose, onBusy, on
         renderImage(source, canvas, settings, size, []);
         const format = action === 'export' ? settings.format : saveFormatFor(item.type);
         const quality = action === 'export' ? settings.quality / 100 : SAVE_QUALITY;
-        const blob = await new Promise((resolve, reject) => flattenForFormat(canvas, format).toBlob((value) => value ? resolve(value) : reject(new Error('Encoding failed')), format, quality));
+        const blob = action === 'export' ? await encodeWebImage(canvas, format, quality, signal) : await new Promise((resolve, reject) => flattenForFormat(canvas, format).toBlob((value) => value ? resolve(value) : reject(new Error('Encoding failed')), format, quality));
         signal.throwIfAborted();
         results.push({ item, blob });
         setProgress(results.length);
       }
       await checkCancelled(signal);
       if (action === 'export') {
-        const extension = settings.format.split('/')[1].replace('jpeg', 'jpg');
-        const names = new Set();
-        const entries = results.map(({ item, blob }) => {
-          const base = item.name.replace(/\.[^.]+$/, '');
-          let name = `${base}-editada.${extension}`;
-          let suffix = 2;
-          while (names.has(name)) name = `${base}-editada-${suffix++}.${extension}`;
-          names.add(name);
-          return { name, blob };
-        });
+        const names = createRenames(results.map(({ item, blob }) => ({ ...item, type: blob.type })), { pattern: '{name}-editada', padding: 1 }, []);
+        const entries = results.map(({ blob }, index) => ({ name: names[index].name, blob }));
         let blob = entries[0].blob;
         if (entries.length > 1) {
           const { default: JSZip } = await import('jszip');

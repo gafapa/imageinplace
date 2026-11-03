@@ -1,0 +1,5 @@
+body { margin: 0; background: #f7f8fa; color: #20242c; font: 15px/1.5 system-ui,sans-serif; }
+main { padding: 16px; } p { margin-top: 0; } #audit-form { display: grid; gap: 10px; } label { font-weight: 650; }
+input,button { font: inherit; min-height: 44px; box-sizing: border-box; } input[type=url] { width: 100%; padding: 8px; border: 1px solid #c8d0da; border-radius: 8px; }
+button { padding: 8px 16px; border: 1px solid #c8d0da; background: white; border-radius: 8px; cursor: pointer; } #analyze { background: #bd1726; color: white; border-color: #bd1726; } button:disabled { opacity: .55; cursor: default; }
+.actions { display: flex; gap: 8px; } #status { margin-top: 16px; white-space: pre-line; } .table-wrap { overflow: auto; } table { width: 100%; border-collapse: collapse; background: white; } th,td { text-align: left; border-bottom: 1px solid #dce1e8; padding: 10px; vertical-align: top; } td:first-child { max-width: 300px; overflow-wrap: anywhere; } :focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }

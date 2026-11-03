@@ -11,6 +11,8 @@ import CanvasPanel from './CanvasPanel';
 import WorkflowPanel from './WorkflowPanel';
 import BackgroundPanel from './BackgroundPanel';
 import TrimPanel from './TrimPanel';
+import EnhancementPanel from './EnhancementPanel.jsx';
+import { encodeWebImage } from './webExport.js';
 import { validateDimensions } from './imageLimits';
 import { flattenForFormat } from './background';
 import ToolPanel from './ToolPanel';
@@ -24,13 +26,13 @@ const HISTORY_LIMIT = 30;
 const HISTORY_BYTES = 128 * 1024 * 1024;
 // Tools that work on the current draft as a file and hand back a new one.
 const GEOMETRY_TOOLS = ['deskew', 'visualcrop', 'perspective'];
-const PANEL_TOOLS = [...GEOMETRY_TOOLS, 'compress', 'rename', 'canvas', 'workflow', 'background', 'trim'];
+const PANEL_TOOLS = [...GEOMETRY_TOOLS, 'compress', 'rename', 'canvas', 'workflow', 'background', 'trim', 'restore', 'intelligence', 'upscale'];
 // Consecutive changes to the same control within this window collapse into one undo step.
 const HISTORY_GROUP_MS = 800;
 // Preview zoom steps; 'fit' shows the whole image in the stage.
 const ZOOM_STEPS = [0.25, 0.5, 1, 2, 4];
 // Panels that stage the current draft as a file (actionItems) and hand back a result.
-const ACTION_PANELS = { compress: CompressionPanel, canvas: CanvasPanel, background: BackgroundPanel, trim: TrimPanel, workflow: WorkflowPanel };
+const ACTION_PANELS = { compress: CompressionPanel, canvas: CanvasPanel, background: BackgroundPanel, trim: TrimPanel, workflow: WorkflowPanel, restore: EnhancementPanel, intelligence: EnhancementPanel, upscale: EnhancementPanel };
 
 const settingsChanged = (value) => Object.keys(initialSettings).filter((key) => key !== 'format' && key !== 'quality').some((key) => !Object.is(value[key], initialSettings[key]));
 
@@ -115,7 +117,9 @@ export default function Editor({ items, activeIndex, setActiveIndex, onBack, onS
     if (source && canvasRef.current) setPreviewDimensions({ width: canvasRef.current.width, height: canvasRef.current.height });
     /* eslint-enable react-hooks/set-state-in-effect */
     const timer = window.setTimeout(() => {
-      if (canvasRef.current) flattenForFormat(canvasRef.current, settings.format).toBlob((blob) => setEstimatedSize(blob?.size || 0), settings.format, settings.quality / 100);
+      // Expensive AVIF/automatic encoding runs only on download, never on each slider movement.
+      if (canvasRef.current && !['auto', 'image/avif'].includes(settings.format)) flattenForFormat(canvasRef.current, settings.format).toBlob((blob) => setEstimatedSize(blob?.size || 0), settings.format, settings.quality / 100);
+      else setEstimatedSize(0);
     }, 180);
     return () => window.clearTimeout(timer);
   }, [activeTool, source, settings, outputSize, privacyAreas, annotations]);
@@ -217,7 +221,7 @@ export default function Editor({ items, activeIndex, setActiveIndex, onBack, onS
   };
 
   const undo = () => {
-    if (GEOMETRY_TOOLS.includes(activeTool)) { setActiveTool('adjust'); setActionItems([]); }
+    if (PANEL_TOOLS.includes(activeTool)) { setActiveTool('adjust'); setActionItems([]); }
     if (!history.length) return;
     const previous = history[history.length - 1];
     setFuture((current) => [takeSnapshot(), ...current]);
@@ -226,7 +230,7 @@ export default function Editor({ items, activeIndex, setActiveIndex, onBack, onS
   };
 
   const redo = () => {
-    if (GEOMETRY_TOOLS.includes(activeTool)) { setActiveTool('adjust'); setActionItems([]); }
+    if (PANEL_TOOLS.includes(activeTool)) { setActiveTool('adjust'); setActionItems([]); }
     if (!future.length) return;
     const next = future[0];
     setHistory((current) => [...current, takeSnapshot()]);
@@ -249,9 +253,7 @@ export default function Editor({ items, activeIndex, setActiveIndex, onBack, onS
     const targetSize = customSizeRef.current ? outputSize : { width: 0, height: 0 };
     renderImage(targetSource, targetCanvas, settings, targetSize, privacyAreas);
     renderAnnotations(targetCanvas.getContext('2d'), annotations, targetCanvas.width, targetCanvas.height);
-    return new Promise((resolve, reject) => {
-      flattenForFormat(targetCanvas, settings.format).toBlob((blob) => blob ? resolve(blob) : reject(new Error('Export failed')), settings.format, settings.quality / 100);
-    });
+    return encodeWebImage(targetCanvas, settings.format, settings.quality / 100);
   };
 
   const exportImage = async () => {
@@ -260,9 +262,10 @@ export default function Editor({ items, activeIndex, setActiveIndex, onBack, onS
       return;
     }
     setExportStatus('processing');
+    setSaving(true);
     try {
-      const extension = settings.format.split('/')[1].replace('jpeg', 'jpg');
       const blob = await createProcessedBlob(workingItem);
+      const extension = blob.type.split('/')[1].replace('jpeg', 'jpg');
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       link.download = `${workingItem.name.replace(/\.[^.]+$/, '')}-editada.${extension}`;
@@ -271,7 +274,7 @@ export default function Editor({ items, activeIndex, setActiveIndex, onBack, onS
       setExportStatus('success');
     } catch {
       setExportStatus('error');
-    }
+    } finally { setSaving(false); }
   };
 
   const pointerPosition = (event) => {
@@ -463,7 +466,7 @@ export default function Editor({ items, activeIndex, setActiveIndex, onBack, onS
     : activeTool === 'rename'
       ? <RenamePanel items={actionItems} allItems={items} onRename={applyIndividualRename} onClose={closePanel} />
       : ActionPanel
-        ? <ActionPanel items={actionItems} allItems={items} onApply={applyIndividualResults} onClose={closePanel} onBusy={setActionBusy} />
+        ? <ActionPanel key={activeTool} mode={activeTool} items={actionItems} allItems={items} onApply={applyIndividualResults} onClose={closePanel} onBusy={setActionBusy} />
         : <ToolPanel onVisualCrop={() => chooseTool('visualcrop')} {...{ activeTool, settings, setSetting, outputSize, setOutputSize: updateOutputSize, aspectLocked, setAspectLocked, source, privacyAreas: privacyAreas.map(areaInView), selectedArea, setSelectedArea, addPrivacyArea, updatePrivacyArea: updateSelectedPrivacyArea, deletePrivacyArea, estimatedSize, detection: detectionActions }} />;
   const zoomBy = (direction) => setZoom((current) => {
     if (current === 'fit') return direction > 0 ? 1 : 0.5;

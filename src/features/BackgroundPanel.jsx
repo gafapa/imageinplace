@@ -49,7 +49,7 @@ function process(canvas, options) {
 export function RangeField({ label, value, min, max, unit = '%', onChange, disabled }) {
   return <label className="range-control">
     <span><strong>{label}</strong><output>{value}{unit}</output></span>
-    <input type="range" min={min} max={max} value={value} disabled={disabled} onChange={(event) => onChange(Number(event.target.value))} />
+    <input type="range" aria-label={label} min={min} max={max} value={value} disabled={disabled} onChange={(event) => onChange(Number(event.target.value))} />
   </label>;
 }
 

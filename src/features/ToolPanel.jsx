@@ -78,7 +78,7 @@ export default function ToolPanel({ onVisualCrop, activeTool, settings, setSetti
         }} />
       </div>
       <div className="quick-size-list">
-        {[25, 50, 100, 150, 200].map((percent) => <button type="button" key={percent} disabled={!source} onClick={() => { const crop = getCrop(settings, source.naturalWidth, source.naturalHeight); setOutputSize({ width: Math.round(crop.sw * percent / 100), height: Math.round(crop.sh * percent / 100) }); }}><strong>{percent}{t('% del tamaño recortado')}</strong></button>)}
+        {[25, 50, 100, 150, 200, 400].map((percent) => <button type="button" key={percent} disabled={!source} onClick={() => { const crop = getCrop(settings, source.naturalWidth, source.naturalHeight); setOutputSize({ width: Math.round(crop.sw * percent / 100), height: Math.round(crop.sh * percent / 100) }); }}><strong>{percent}{t('% del tamaño recortado')}</strong></button>)}
         <button type="button" onClick={() => setOutputSize({ width: 1920, height: 1080 })}><strong>{t('Cabe en una diapositiva')}</strong><span>1920 × 1080</span></button>
         <button type="button" onClick={() => setOutputSize({ width: 1200, height: 630 })}><strong>{t('Cabe en una imagen web')}</strong><span>1200 × 630</span></button>
         <button type="button" onClick={() => setOutputSize({ width: 1080, height: 1080 })}><strong>{t('Cabe en un cuadrado')}</strong><span>1080 × 1080</span></button>
@@ -169,12 +169,14 @@ export default function ToolPanel({ onVisualCrop, activeTool, settings, setSetti
     <>
       <PanelHeader title={t('Exportar imagen')} description={t('Elige el equilibrio entre calidad y peso.')} />
       <fieldset className="format-options"><legend>{t('Formato')}</legend>{[
+        ['auto', t('Menor archivo'), t('Compara AVIF, WebP, JPEG y PNG; conserva la transparencia')],
+        ['image/avif', 'AVIF', t('Compresión local con WebAssembly')],
         ['image/jpeg', 'JPG', t('Fotos y archivos ligeros')],
         ['image/png', 'PNG', t('Texto y transparencias')],
         ['image/webp', 'WebP', t('Web moderna y menos peso')],
-      ].map(([value, title, copy]) => <label key={value} className={settings.format === value ? 'active' : ''}><input type="radio" name="format" value={value} checked={settings.format === value} onChange={() => setSetting('format', value)} /><span><strong>{title}</strong><small>{copy}</small></span><BadgeCheck /></label>)}</fieldset>
+      ].map(([value, title, copy]) => <label key={value} className={settings.format === value ? 'active' : ''}><input type="radio" aria-label={title} aria-description={copy} name="format" value={value} checked={settings.format === value} onChange={() => setSetting('format', value)} /><span><strong>{title}</strong><small>{copy}</small></span><BadgeCheck /></label>)}</fieldset>
       {settings.format !== 'image/png' && <RangeControl label={t('Calidad')} value={settings.quality} min={20} max={100} onChange={(value) => setSetting('quality', value)} />}
-      <div className="estimated-size"><span>{t('Peso aproximado')}</span><strong>{estimatedSize ? formatBytes(estimatedSize) : t('Calculando…')}</strong></div>
+      <div className="estimated-size"><span>{t('Peso aproximado')}</span><strong>{['auto', 'image/avif'].includes(settings.format) ? t('Se mide al exportar') : estimatedSize ? formatBytes(estimatedSize) : t('Calculando…')}</strong></div>
     </>
   );
 }

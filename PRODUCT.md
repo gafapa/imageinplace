@@ -20,7 +20,7 @@ Image in Place makes common image operations fast and approachable. Success mean
 
 ## Positioning
 
-An education-friendly image toolbox in which every operation happens locally in the browser. It combines focused, one-purpose workflows with a shared workspace, so users do not need to upload sensitive classroom images or learn a complex professional editor.
+An education-friendly image toolbox in which image editing happens locally in the browser. It combines focused, one-purpose workflows with a shared workspace, so users do not need to upload sensitive classroom images or learn a complex professional editor.
 
 ## Operating Context
 
@@ -36,12 +36,14 @@ Typical tasks include preparing images for presentations and worksheets, resizin
 - Users can apply one set of operations to multiple selected images and download the results as a ZIP archive.
 - Batch operations must work without reviewing images individually: select images, choose an action, configure it in the right sidebar, and apply to the selection. The sidebar displays selected-image metadata when no action is active. Visual cropping and privacy masking are individual editing tasks.
 - Primary application surfaces fit the viewport; long content scrolls within its own work area instead of the document.
-- `imageinplace.com` is the preferred domain if it is available to register.
-- The first release should establish an extensible foundation for additional image tools.
+- The configured public domain is `imageinplace.com`; live deployment must be verified separately.
+- Preserve local project integrity, bounded undo history, explicit session recovery, and atomic batch application.
+- Restoration, local suggestions, interpolation-based enlargement, and AVIF export run on the device.
+- The separate public-page analyzer makes explicit external HTTPS requests in an opaque-origin sandbox. It must never receive editor images, projects, or recovery storage.
 
 ## Brand Commitments
 
-The provisional product name is **Image in Place**, derived from the preferred domain. The voice should be direct, calm, and practical rather than technical.
+The product name is **Image in Place**. The voice should be direct, calm, and practical rather than technical.
 
 ## Evidence on Hand
 

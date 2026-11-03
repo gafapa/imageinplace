@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 
-await mkdir('.impeccable/review/features', { recursive: true });
+await mkdir('artifacts/browser/features', { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 page.setDefaultTimeout(10000);
@@ -38,9 +38,9 @@ try {
   await editor.getByLabel('Ancho del lienzo (px)', {exact:true}).fill('400');
   await editor.getByLabel('Alto del lienzo (px)', {exact:true}).fill('400');
   await editor.getByLabel('Relleno alrededor (px)', {exact:true}).fill('20');
-  await page.screenshot({path:'.impeccable/review/features/individual-new-tools-desktop.png'});
+  await page.screenshot({path:'artifacts/browser/features/individual-new-tools-desktop.png'});
   await page.setViewportSize({width:390,height:844});
-  await page.screenshot({path:'.impeccable/review/features/individual-new-tools-mobile.png'});
+  await page.screenshot({path:'artifacts/browser/features/individual-new-tools-mobile.png'});
   await page.setViewportSize({width:1440,height:900});
   await tool('Crear lienzo'); await dimensions(400, 400);
   const pixel = await editor.locator('canvas').evaluate((canvas) => Array.from(canvas.getContext('2d').getImageData(30, 200, 1, 1).data));

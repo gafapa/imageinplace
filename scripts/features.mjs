@@ -4,7 +4,7 @@ import { mkdir, readFile } from 'node:fs/promises';
 import { PDFDocument } from 'pdf-lib';
 import { createRenames } from '../src/features/rename.js';
 
-const output = '.impeccable/review/features';
+const output = 'artifacts/browser/features';
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });

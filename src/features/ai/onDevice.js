@@ -25,6 +25,7 @@ function getWorker() {
     if (error) request.reject(new Error(error)); else request.resolve(result);
   };
   worker.onerror = (event) => { event.preventDefault?.(); resetWorker(new Error(t('No se pudo cargar el modelo en este navegador.'))); };
+  worker.onmessageerror = () => resetWorker(new Error(t('No se pudo cargar el modelo en este navegador.')));
   return worker;
 }
 
@@ -43,7 +44,8 @@ function request(operation, payload, transfer, signal) {
     signal?.addEventListener('abort', abort, { once: true });
     const settle = (callback) => (value) => { signal?.removeEventListener('abort', abort); callback(value); };
     pending.set(id, { resolve: settle(resolve), reject: settle(reject) });
-    getWorker().postMessage({ id, operation, payload }, transfer);
+    try { getWorker().postMessage({ id, operation, payload }, transfer); }
+    catch (cause) { resetWorker(cause); }
   });
 }
 

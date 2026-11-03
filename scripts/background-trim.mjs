@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdir, readFile } from 'node:fs/promises';
 
 // End-to-end checks for "Quitar fondo" and "Recortar al contenido" in the gallery and the editor.
-const output = '.impeccable/review/features';
+const output = 'artifacts/browser/features';
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });

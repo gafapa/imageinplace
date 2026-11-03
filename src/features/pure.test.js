@@ -36,6 +36,12 @@ describe('createRenames', () => {
     const all = [...items, { id: 'c', name: 'x.jpg', type: 'image/jpeg' }];
     expect(createRenames([items[0]], { pattern: 'x', padding: 1 }, all)[0].name).toBe('x (2).jpg');
   });
+  it('creates flat, case-insensitive unique names for batch export', () => {
+    const entries = [{ id: 'a', name: '../Photo.png', type: 'image/avif' }, { id: 'b', name: '../photo.png', type: 'image/avif' }];
+    const names = createRenames(entries, { pattern: '{name}-editada', padding: 1 }, []).map(({ name }) => name);
+    expect(names.every((name) => !/[\\/]/.test(name) && name.endsWith('.avif'))).toBe(true);
+    expect(new Set(names.map((name) => name.toLowerCase())).size).toBe(2);
+  });
 });
 
 describe('validateCanvasSize', () => {

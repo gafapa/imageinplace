@@ -21,6 +21,7 @@ const loaders = {
 const STORAGE_KEY = 'imageinplace-locale';
 let locale = 'es';
 let dictionary = null;
+let loadSequence = 0;
 
 const interpolate = (text, params) => (params
   ? text.replace(/\{(\w+)\}/g, (match, name) => (Object.hasOwn(params, name) ? String(params[name]) : match))
@@ -39,9 +40,9 @@ export function tn(count, one, other, params = {}) {
 export const currentLocale = () => locale;
 export const intlLocale = () => LOCALES.find((entry) => entry.id === locale)?.intl || 'es-ES';
 
-export function detectLocale(storage = globalThis.localStorage, languages = globalThis.navigator?.languages || []) {
+export function detectLocale(storage, languages = globalThis.navigator?.languages || []) {
   let stored = null;
-  try { stored = storage?.getItem(STORAGE_KEY); } catch { /* storage blocked */ }
+  try { stored = (storage ?? globalThis.localStorage)?.getItem(STORAGE_KEY); } catch { /* storage blocked */ }
   if (LOCALES.some((entry) => entry.id === stored)) return stored;
   for (const language of languages) {
     const id = String(language).toLowerCase().split('-')[0];
@@ -51,8 +52,12 @@ export function detectLocale(storage = globalThis.localStorage, languages = glob
 }
 
 export async function loadLocale(id, { remember = false } = {}) {
+  const sequence = ++loadSequence;
   const next = LOCALES.some((entry) => entry.id === id) ? id : 'es';
-  dictionary = next === 'es' ? null : (await loaders[next]()).default;
+  const loaded = next === 'es' ? null : (await loaders[next]()).default;
+  // A slower import must not replace a language chosen more recently.
+  if (sequence !== loadSequence) return locale;
+  dictionary = loaded;
   locale = next;
   if (globalThis.document) document.documentElement.lang = next;
   if (remember) { try { localStorage.setItem(STORAGE_KEY, next); } catch { /* preference is optional */ } }

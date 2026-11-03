@@ -10,6 +10,7 @@ import PrintSheetPanel from './PrintSheetPanel';
 import WorkflowPanel from './WorkflowPanel';
 import BackgroundPanel from './BackgroundPanel';
 import TrimPanel from './TrimPanel';
+import EnhancementPanel from './EnhancementPanel.jsx';
 import { formatBytes } from './imageEngine';
 import { batchTools } from './tools';
 import { t, tn } from '../i18n/index.js';
@@ -119,6 +120,7 @@ export default function Gallery({ notice, onDismissNotice, items, selectedIds, s
           <aside className="gallery-side-panel" aria-label={t('Opciones de la acción en bloque')}>
             {batchAction && selectedItems.length ? (() => {
               const panelProps = { items: selectedItems, onPreview: setPreviews, onApply: onBatchApply, onClose: onBatchClose, onBusy: onBatchBusy };
+              if (['restore', 'intelligence', 'upscale'].includes(batchAction.toolId)) return <EnhancementPanel key={batchAction.toolId} mode={batchAction.toolId} {...panelProps} />;
               if (batchAction.toolId === 'compress') return <CompressionPanel {...panelProps} />;
               if (batchAction.toolId === 'rename') return <RenamePanel {...panelProps} allItems={items} onRename={onRename} />;
               if (batchAction.toolId === 'canvas') return <CanvasPanel {...panelProps} />;
