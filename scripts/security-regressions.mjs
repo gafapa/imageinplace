@@ -4,6 +4,7 @@ import { chromium } from 'playwright';
 import JSZip from 'jszip';
 
 const url = process.env.TEST_URL || 'http://127.0.0.1:4180';
+const appOrigin = new URL(url).origin;
 const output = 'artifacts/browser/security';
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch();
@@ -62,7 +63,10 @@ try {
   await page.getByRole('dialog', { name: 'Analizar página web', exact: true }).waitFor();
   const audit = page.frameLocator('.page-audit-dialog iframe');
   const external = [];
-  await page.route('https://**/*', (route) => { external.push(route.request().url()); return route.abort(); });
+  await page.route('https://**/*', (route) => {
+    if (new URL(route.request().url()).origin === appOrigin) return route.continue();
+    external.push(route.request().url()); return route.abort();
+  });
   for (const hostname of ['printer.local.', 'service.localhost.', 'router.home.arpa.']) {
     await audit.locator('#page-url').fill(`https://${hostname}/`);
     await audit.locator('#analyze').click();
