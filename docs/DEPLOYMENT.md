@@ -1,6 +1,6 @@
 # Deployment
 
-The site is the static `dist/` folder, served at [imageinplace.com](https://imageinplace.com) by the shared `static-sites` Nginx service of the gallego.top server behind Traefik. Publishing follows the hub runbook `D:\gallego.top\runbooks\static-site-content.md`; release archives, manifests, backups and rollback notes are kept under `D:\gallego.top\ops\imageinplace\`.
+The site is the static `dist/` folder, served at [imageinplace.com](https://imageinplace.com) by the shared `static-sites` Nginx service of the gallego.top server behind Traefik. Publishing follows the hub runbook `D:\gallego.top\runbooks\static-sites.md`; release archives, manifests, backups and rollback notes are kept under `D:\gallego.top\ops\sites\imageinplace\`.
 
 ## Release steps
 
@@ -13,6 +13,6 @@ The site is the static `dist/` folder, served at [imageinplace.com](https://imag
 
 The `imageinplace-security` Traefik middleware must send: the same CSP as the build's `<meta>` tag plus a `frame-ancestors` directive, HSTS, `X-Content-Type-Options: nosniff`, a Referrer-Policy and a Permissions-Policy. A `<meta>` CSP cannot express `frame-ancestors`, so the header is required.
 
-## Pending cleanup on the server
+## Routing
 
-The 2026-11-03 release (commit `45c8d90`) still included the removed web-page analyzer. Its Traefik fragment relaxes the policy for `/page-audit.html`, `/page-audit.js` and `/page-audit.css`. Those files no longer exist in the build; remove that routing fragment with the next release so no route keeps a weaker policy than the editor.
+The domain uses only the shared `static-sites` router, so every path gets the editor policy. The analyzer's dedicated Traefik file was removed with the 2026-11-09 release (`a6555b3`).
