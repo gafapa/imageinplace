@@ -38,8 +38,8 @@ Typical tasks include preparing images for presentations and worksheets, resizin
 - Primary application surfaces fit the viewport; long content scrolls within its own work area instead of the document.
 - The configured public domain is `imageinplace.com`; live deployment must be verified separately.
 - Preserve local project integrity, bounded undo history, explicit session recovery, and atomic batch application.
-- Restoration, local suggestions, interpolation-based enlargement, and AVIF export run on the device.
-- The separate public-page analyzer makes explicit external HTTPS requests in an opaque-origin sandbox. It must never receive editor images, projects, or recovery storage.
+- Nothing contacts an external service. A feature that needs the network does not belong in this product.
+- Users must be able to remove hidden metadata (location, date, device, author) before sharing, without losing quality.
 
 ## Brand Commitments
 

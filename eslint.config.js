@@ -4,9 +4,9 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default [
-  { ignores: ['dist', 'node_modules', 'artifacts', '.impeccable'] },
+  { ignores: ['dist', 'node_modules', 'artifacts'] },
   {
-    files: ['src/**/*.{js,jsx}', 'public/*.js'],
+    files: ['src/**/*.{js,jsx}'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -22,7 +22,7 @@ export default [
     },
   },
   {
-    files: ['scripts/**/*.mjs', '*.config.js', 'src/**/*.test.js'],
+    files: ['scripts/**/*.mjs', 'e2e/**/*.mjs', '*.config.js', '**/*.test.js'],
     languageOptions: { ecmaVersion: 'latest', sourceType: 'module', globals: { ...globals.node, ...globals.browser } },
     rules: js.configs.recommended.rules,
   },

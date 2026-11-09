@@ -1,20 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDownToLine, BookOpen, Check, Crop, Eraser, Gauge, History, Image as ImageIcon, Maximize2, PenLine, ScanFace, ShieldCheck, SlidersHorizontal, Undo2, Upload } from 'lucide-react';
-import Editor from './features/Editor';
-import Gallery from './features/Gallery';
-import BrandMark from './features/BrandMark';
-import ProjectControls from './features/ProjectControls';
-import LanguageSelect from './features/LanguageSelect';
-import PageAudit from './features/PageAudit.jsx';
-import CompareDialog from './features/CompareDialog';
-import { openProject, saveProject } from './features/project';
-import { inspectImage, releaseItems, validateWorkspace, MAX_FILE_BYTES } from './features/imageLimits';
-import useImageHistory from './features/useImageHistory';
-import { nameForType } from './features/imageEngine';
-import { IMAGE_ACCEPT, importType, undecodableMessage } from './features/imageImport';
-import { convertHeicToJpeg, isHeicType } from './features/heic';
-import { isTextEntry, shortcutFor } from './features/shortcuts';
-import { acquireRecoveryWriter, clearSession, loadSession, readRecoveryPreference, storeSession, writeRecoveryPreference } from './features/sessionStore';
+import { BookOpen, Check, Crop, Eraser, EyeOff, Gauge, History, Image as ImageIcon, Maximize2, PenLine, ScanFace, ShieldCheck, SlidersHorizontal, Undo2, Upload } from 'lucide-react';
+import Editor from './ui/Editor';
+import Gallery from './ui/Gallery';
+import BrandMark from './ui/BrandMark';
+import ProjectControls from './ui/ProjectControls';
+import LanguageSelect from './ui/LanguageSelect';
+import CompareDialog from './ui/CompareDialog';
+import { openProject, saveProject } from './app/project';
+import { downloadBlob } from './app/download';
+import { inspectImage, releaseItems, validateWorkspace, MAX_FILE_BYTES } from './image/imageLimits';
+import useImageHistory from './app/useImageHistory';
+import { nameForType } from './image/imageEngine';
+import { IMAGE_ACCEPT, importType, undecodableMessage } from './image/imageImport';
+import { convertHeicToJpeg, isHeicType } from './image/heic';
+import { isTextEntry, shortcutFor } from './app/shortcuts';
+import { acquireRecoveryWriter, clearSession, loadSession, readRecoveryPreference, storeSession, writeRecoveryPreference } from './app/sessionStore';
 import { t, tn, intlLocale, currentLocale, loadLocale } from './i18n/index.js';
 
 const MAX_FILE_SIZE = MAX_FILE_BYTES;
@@ -54,7 +54,7 @@ const homeTasks = () => [
   { id: 'compress', mode: 'batch', icon: Gauge, title: t('Reducir el peso'), copy: t('Para Moodle, el correo o la web') },
   { id: 'resize', mode: 'batch', icon: Maximize2, title: t('Cambiar el tamaño'), copy: t('Medidas exactas o porcentaje') },
   { id: 'crop', mode: 'editor', icon: Crop, title: t('Recortar'), copy: t('Diapositiva, cuadrado o A4') },
-  { id: 'export', mode: 'batch', icon: ArrowDownToLine, title: t('Convertir formato'), copy: t('JPG, PNG o WebP') },
+  { id: 'metadata', mode: 'batch', icon: EyeOff, title: t('Quitar datos ocultos'), copy: t('Ubicación, fecha y móvil de las fotos') },
   { id: 'privacy', mode: 'editor', icon: ScanFace, title: t('Ocultar caras o nombres'), copy: t('Antes de compartir'), ai: true },
   { id: 'background', mode: 'batch', icon: Eraser, title: t('Quitar el fondo'), copy: t('Fotos, logos y dibujos'), ai: true },
   { id: 'annotate', mode: 'editor', icon: PenLine, title: t('Señalar y explicar'), copy: t('Flechas, texto y números') },
@@ -335,9 +335,7 @@ export default function App() {
     const snapshot = items;
     try {
       const blob = await saveProject(snapshot);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a'); link.href = url; link.download = 'imageinplace-proyecto.iip'; link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      downloadBlob(blob, 'imageinplace-proyecto.iip');
       savedItems.current = JSON.stringify(snapshot.map(({ id, url, name }) => [id, url, name]));
       setIoStatus(t('Proyecto preparado para descargar. Conserva el archivo en tu equipo.'));
     } catch (cause) { setError(cause.message); setIoStatus(t('No se pudo guardar el proyecto.')); }
@@ -346,7 +344,7 @@ export default function App() {
   // Re-rendering App re-renders every component, so t() picks up the new dictionary everywhere.
   const [locale, setLocale] = useState(currentLocale);
   const changeLocale = async (id) => { try { setLocale(await loadLocale(id, { remember: true })); } catch { setError(t('No se pudo cargar el idioma. Comprueba la conexión.')); } };
-  const projectControls = <><PageAudit /><LanguageSelect value={locale} onChange={changeLocale} disabled={batchBusy || ioBusy} /><ProjectControls busy={batchBusy || ioBusy} hasItems={!!items.length} onOpen={handleOpenProject} onSave={handleSaveProject} recoveryEnabled={recoveryEnabled} recoveryAvailable={recoveryWriter} onToggleRecovery={toggleRecovery} /></>;
+  const projectControls = <><LanguageSelect value={locale} onChange={changeLocale} disabled={batchBusy || ioBusy} /><ProjectControls busy={batchBusy || ioBusy} hasItems={!!items.length} onOpen={handleOpenProject} onSave={handleSaveProject} recoveryEnabled={recoveryEnabled} recoveryAvailable={recoveryWriter} onToggleRecovery={toggleRecovery} /></>;
   const recoverSession = () => { if (storedSession) handleOpenProject(storedSession.blob, { recovering: true }); };
   const discardSession = () => {
     if (!recoveryRelease.current) {
@@ -424,6 +422,28 @@ export default function App() {
     }
   };
 
+  // Hidden-data removal replaces the original too, so projects and session recovery stop carrying it.
+  const applyCleanedItems = async (results, signal) => {
+    const staged = results.map(({ item, blob, original, name, originalName }) => {
+      const url = URL.createObjectURL(blob);
+      const originalBlob = original || blob;
+      const originalUrl = original ? URL.createObjectURL(original) : url;
+      const cleanName = originalName || item.originalName || item.name;
+      return { ...item, name, type: blob.type, size: blob.size, url, originalUrl, originalName: cleanName, originalType: originalBlob.type, originalSize: originalBlob.size,
+        file: new File([originalBlob], cleanName, { type: originalBlob.type, lastModified: Date.now() }), lastModified: Date.now() };
+    });
+    try {
+      signal?.throwIfAborted();
+      const replacements = new Map(staged.map((item) => [item.id, item]));
+      validateWorkspace(itemsRef.current.map((item) => replacements.get(item.id) || item));
+      setItems((current) => current.map((item) => replacements.get(item.id) || item));
+      setIoStatus(tn(staged.length, 'Datos ocultos borrados de {n} imagen.', 'Datos ocultos borrados de {n} imágenes.'));
+    } catch (cause) {
+      staged.forEach((item) => { URL.revokeObjectURL(item.url); if (item.originalUrl !== item.url) URL.revokeObjectURL(item.originalUrl); });
+      throw cause;
+    }
+  };
+
   const openItemEditor = (itemId) => {
     setBatchAction(null);
     const itemIndex = items.findIndex((item) => item.id === itemId);
@@ -466,7 +486,7 @@ export default function App() {
 
   return <>
     {!items.length && <Home {...{onFiles: addFiles, onPickFiles: pickFiles, onTask: startTask, session: storedSession, onRecover: recoverSession, onDiscard: discardSession, busy: ioBusy, error, projectControls, canUndo, onUndo}} />}
-    {items.length > 0 && <Gallery {...{ notice: error, onDismissNotice: () => setError(''), items, selectedIds, setSelectedIds, onPickFiles: pickFiles, onBatchEdit: openBatchEditor, onEditItem: openItemEditor, onCompareItem: setComparisonId, onRemove: removeSelected, onClear: clearAll, batchAction, onBatchClose: () => setBatchAction(null), onBatchApply: applyBatchResults, batchBusy: batchBusy || ioBusy, onBatchBusy: setBatchBusy, onUndo, onRedo, canUndo, canRedo, onRestore: () => { setBatchAction(null); restoreOriginals(selectedIds); }, onRename, projectControls }} />}
+    {items.length > 0 && <Gallery {...{ notice: error, onDismissNotice: () => setError(''), items, selectedIds, setSelectedIds, onPickFiles: pickFiles, onBatchEdit: openBatchEditor, onEditItem: openItemEditor, onCompareItem: setComparisonId, onRemove: removeSelected, onClear: clearAll, batchAction, onBatchClose: () => setBatchAction(null), onBatchApply: applyBatchResults, batchBusy: batchBusy || ioBusy, onBatchBusy: setBatchBusy, onUndo, onRedo, canUndo, canRedo, onRestore: () => { setBatchAction(null); restoreOriginals(selectedIds); }, onRename, onClean: applyCleanedItems, projectControls }} />}
     {comparisonId && items.some((item) => item.id === comparisonId) && <CompareDialog items={items} itemId={comparisonId} onNavigate={setComparisonId} onClose={() => setComparisonId(null)} />}
     {items.length > 0 && workspaceMode === 'editor' && <Editor key={items[activeIndex].id} {...{ items, activeIndex, setActiveIndex, onBack: () => setWorkspaceMode('gallery'), onSave: applyBatchResults, initialTool: editorStartTool }} />}
     <input ref={fileInputRef} className="sr-only" type="file" accept={IMAGE_ACCEPT} multiple tabIndex={-1} aria-hidden="true" onCancel={() => { pendingTask.current = null; }} onChange={(event) => { addFiles(Array.from(event.target.files || [])); event.target.value = ''; }} />

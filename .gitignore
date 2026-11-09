@@ -2,8 +2,8 @@
 node_modules/
 dist/
 artifacts/
-.impeccable/
 *.log
 .DS_Store
 .vite/
 coverage/
+.impeccable/

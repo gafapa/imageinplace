@@ -26,7 +26,7 @@ Use the bundled Atkinson Hyperlegible Next Variable family, with Segoe UI Variab
 | Control border | `--control-line` | `#d8dce2` |
 | Keyboard focus | `--focus` | `#1d4ed8` |
 
-Red identifies brand and primary actions. Blue remains available for focus and image-editing overlays; it is not a competing decorative theme. Legacy `--green` and `--coral` names alias the red accent in CSS.
+Red identifies brand and primary actions. Blue remains available for focus and image-editing overlays; it is not a competing decorative theme. `--green` and `--coral` are legacy aliases of the red accent; prefer `--accent` in new CSS.
 
 ## Layout and interaction
 
@@ -44,4 +44,4 @@ Use semantic controls, visible keyboard focus, descriptive accessible names, non
 
 ## Review
 
-Use the browser regressions in [docs/TESTING.md](docs/TESTING.md) for desktop/mobile containment, keyboard controls, and saved-state behavior. Historical audit findings in `docs/reviews/` are dated evidence, not a current accessibility or production certificate.
+Use the browser regressions in [docs/TESTING.md](docs/TESTING.md) for desktop/mobile containment, keyboard controls, and saved-state behavior.

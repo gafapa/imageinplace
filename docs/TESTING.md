@@ -1,38 +1,33 @@
 # Testing
 
-## Local checks
+## Unit tests
 
-Install locked dependencies with `npm ci`. Run `npm run check` for ESLint, unit tests, and the production build. Unit tests cover processing helpers, geometry and privacy transforms, project integrity, HEIC limits, OCR ownership, translations, and generated offline behavior.
+`npm run check` runs ESLint, Vitest and the production build. Unit tests sit next to their modules (`src/**/*.test.js`, `scripts/*.test.js`) and cover rendering helpers, geometry and privacy-zone transforms, hidden-data removal, project integrity, HEIC limits, OCR request ownership, the offline build and dictionary completeness (every `t()` text translated, same placeholders, no unused keys).
 
 ## Browser regressions
 
-Install the required Playwright Chromium and WebKit browsers with `npx playwright install chromium webkit`. In one terminal run:
-
 ```sh
-npm run build
-npm run preview -- --host 127.0.0.1 --port 4180
+npx playwright install chromium webkit   # once
+npm run build && npm run preview         # 127.0.0.1:4180
+npm run test:e2e                         # every suite, stops at the first failure
+node e2e/run.mjs metadata usability      # selected suites
 ```
 
-In another terminal run `npm run test:e2e` and `npm run test:advanced`. `npm run test:security` runs the security regression subset on its own. Most suites default to port 4180 and accept `TEST_URL`. The standalone `node scripts/capture.mjs` suite defaults to port 4173; set `TEST_URL=http://127.0.0.1:4180` to use the production preview. Tests that exercise service workers require a production build.
+Set `TEST_URL` to run against another origin (for example the live site). Service-worker suites need a production build. Fixtures are synthetic or verified public samples; `on-device-ai` downloads two of them into `node_modules/.cache` on first run. Screenshots and downloads go to the ignored `artifacts/browser/`.
 
-| Scripts | Coverage |
+| Suite (`e2e/*.mjs`) | Covers |
 | --- | --- |
-| `features`, `history-editor`, `individual-actions` | Gallery/history, draft isolation, comparison, compression, rename, canvas, annotations |
-| `workflow-print` | Saved workflows, malformed preferences, printable layout and names |
-| `review-fixes`, `background-trim` | Export and editing regressions, uniform background removal and trimming |
-| `project-safety` | Project round trips, corruption, limits, legacy compatibility |
-| `geometry-offline`, `offline-lifecycle` | Geometry, offline reload/export, waiting updates, cache isolation and failed installs |
-| `usability` | Keyboard, language, mobile layout, recovery, zoom, source-format export, Chromium/WebKit filters |
-| `on-device-ai` | HEIC, face detection, background removal, OCR and on-demand offline assets |
-| `audit-fixes` | Recovery ownership/deletion, detection revisions, translated offline status, touch targets |
-| `privacy-transforms` | Privacy masks through transforms, undo, saved drafts and export in Chromium/WebKit |
-| `advanced-features` | Restoration, local suggestions, enlargement, AVIF, automatic transparent exports and page-audit isolation |
-| `security-regressions` | Blocked-storage startup, case-insensitive ZIP filenames, workflow deletion failure, named audit dialog, local URLs and mobile containment |
-| `offline-page-audit` | Explicit offline notice without an empty iframe, preserved app shell, and successful analyzer opening after reconnecting |
-| `capture` | Standalone desktop/mobile import, gallery, batch and individual-editor regressions |
+| `features`, `history-editor`, `individual-actions` | gallery, global history, editor drafts, comparison, compression, rename, canvas, annotations |
+| `workflow-print` | saved workflows, malformed presets, A4 PDF layout and captions |
+| `export-regressions`, `background-trim` | export regressions, uniform background removal, trimming |
+| `project-safety` | project round trips, corruption, limits, version-1 files |
+| `geometry-offline`, `offline-lifecycle` | straighten/crop/perspective, offline reload and export, waiting updates, failed installs |
+| `usability` | keyboard, languages, mobile layout, recovery, zoom, Chromium/WebKit colour parity |
+| `on-device-ai` | HEIC, face detection, AI background removal, OCR covering, on-demand offline assets |
+| `recovery-detection` | recovery ownership and deletion, detection invalidation, touch targets |
+| `privacy-transforms` | privacy zones through rotate/flip/crop, undo, saved drafts, exported pixels |
+| `metadata` | lossless JPEG cleaning, kept orientation, generic names, clean project file |
+| `restoration` | batch and editor repair, mobile layout |
+| `security-regressions` | startup with blocked storage, case-insensitive ZIP names, workflow storage errors |
 
-Names in the table refer to `.mjs` files in `scripts/`. Browser output is disposable and written under `artifacts/browser/`; no user images are needed. The AI suite downloads verified third-party sample files to `node_modules/.cache` on first use. Keep production model binaries and their license/checksum notices in `public/ai/`.
-
-## Evidence limits
-
-A build or unit-test pass does not establish full browser coverage, low-memory-device behavior, accessibility certification, or production deployment. Record which browser suites actually ran. Historical findings and follow-up reports are retained in [reviews/](reviews/); their old reproduction paths are historical references.
+A passing run is evidence for the browsers it ran in, not for low-memory devices, assistive technology or production headers. Record which suites ran.
